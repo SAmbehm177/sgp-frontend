@@ -1,0 +1,8 @@
+{
+  "name": "Remix Remix SGP - Système de Gestion de Projet",
+  "description": "Application web responsive de gestion de projets, membres, tâches et notifications avec contrôle des rôles et intégration API Laravel. couleur de base 670038",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
