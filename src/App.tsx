@@ -6,18 +6,18 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
+import { NotificationsProvider } from './context/NotificationsContext';
 import { Navbar } from './components/layout/Navbar';
 import { Sidebar } from './components/layout/Sidebar';
 import { DashboardView } from './components/dashboard/DashboardView';
 import { ProjectsListView } from './components/projects/ProjectsListView';
 import { ProjectDetailView } from './components/projects/ProjectDetailView';
 import { MyTasksView } from './components/tasks/MyTasksView';
-import { NotificationsView } from './components/notifications/NotificationsView';
 import { AdminView } from './components/admin/AdminView';
 import { ProfileView } from './components/profile/ProfileView';
+import { NotificationsView } from './components/notifications/NotificationsView';
 import { LoginView } from './components/auth/LoginView';
 import { RegisterView } from './components/auth/RegisterView';
-
 
 function AppContent() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -27,7 +27,6 @@ function AppContent() {
   const [routeParams, setRouteParams] = useState<any>({});
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [projetTitre, setProjetTitre] = useState<{ id: number; titre: string } | null>(null);
-
 
   // Synchronisation avec l'URL Hash pour le support des liens profonds
   useEffect(() => {
@@ -60,12 +59,11 @@ function AppContent() {
         setCurrentRoute('notifications');
       } else if (base === 'administration') {
         setCurrentRoute('administration');
-} else if (base === 'profil') {
-  setCurrentRoute('profile');
-
-} else {
-  setCurrentRoute('dashboard');
-}
+      } else if (base === 'profil') {
+        setCurrentRoute('profile');
+      } else {
+        setCurrentRoute('dashboard');
+      }
     };
 
     parseHash();
@@ -216,7 +214,9 @@ export default function App() {
   return (
     <ToastProvider>
       <AuthProvider>
-        <AppContent />
+        <NotificationsProvider>
+          <AppContent />
+        </NotificationsProvider>
       </AuthProvider>
     </ToastProvider>
   );

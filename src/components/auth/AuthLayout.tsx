@@ -9,45 +9,42 @@ interface AuthLayoutProps {
   footer?: React.ReactNode;
 }
 
-/**
- * Page d'authentification en deux panneaux :
- * message à gauche (écrans larges), formulaire à droite.
- */
 export const AuthLayout: React.FC<AuthLayoutProps> = ({ eyebrow, title, subtitle, children, footer }) => (
-  <div className="min-h-screen bg-cream lg:grid lg:grid-cols-2">
-    <aside className="relative hidden overflow-hidden bg-brand-800 text-white lg:flex lg:flex-col lg:justify-center lg:px-16 xl:px-24">
-      <div className="pointer-events-none absolute -bottom-44 -right-44 h-[30rem] w-[30rem] rounded-full border-[56px] border-white/[0.06]" />
-      <div className="pointer-events-none absolute -bottom-28 -right-28 h-80 w-80 rounded-full bg-white/[0.04]" />
+  <main className="flex min-h-screen items-center justify-center bg-cream px-4 py-10 sm:px-6">
+    <div className="w-full max-w-md">
 
-      <div className="relative max-w-md">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-300">
-          L'espace de travail collectif
-        </p>
-        <p className="mt-5 text-5xl font-bold leading-[1.05] tracking-tight xl:text-6xl">
-          Les projets avancent mieux, ensemble.
-        </p>
-        <p className="mt-6 max-w-sm text-sm leading-relaxed text-brand-100/80">
-          Un espace clair pour les équipes qui transforment les idées en travail accompli.
-        </p>
-      </div>
-    </aside>
 
-    <main className="flex min-h-screen items-center justify-center px-6 py-12 sm:px-10">
-      <div className="w-full max-w-sm">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-700">{eyebrow}</p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-brand-950">{title}</h1>
-        <p className="mt-2 text-sm text-stone-500">{subtitle}</p>
+      <section
+        aria-labelledby="auth-title"
+        className="rounded-2xl border border-card-border bg-card p-8 shadow-sm sm:p-10"
+      >
+        <div className="mb-5 flex items-center justify-center">
+          <img
+            src="/CPNTIC_logo.jpg"
+            alt="Logo CPNTIC"
+            width={200}
+            height={85}
+            className="h-16 w-auto object-contain"
+          />
+        </div>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-700">
+          {eyebrow}
+        </p>
+        <h1 id="auth-title" className="mt-2 text-3xl font-bold leading-tight tracking-tight text-slate-900 justify-center items-center">
+          {title}
+        </h1>
+        <p className="mt-3 text-sm leading-relaxed text-slate-500">{subtitle}</p>
 
         <div className="mt-8">{children}</div>
 
         {footer && (
-          <div className="mt-8 border-t border-stone-300/60 pt-5 text-center text-xs text-stone-500">
+          <div className="mt-6 border-t border-card-border pt-5 text-center text-sm text-slate-500">
             {footer}
           </div>
         )}
-      </div>
-    </main>
-  </div>
+      </section>
+    </div>
+  </main>
 );
 
 interface AuthFieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -62,7 +59,7 @@ export const AuthField: React.FC<AuthFieldProps> = ({ label, error, type, ...pro
 
   return (
     <div>
-      <label htmlFor={fieldId} className="mb-1.5 block text-xs font-semibold text-stone-700">
+      <label htmlFor={fieldId} className="mb-1.5 block text-sm font-medium text-slate-700">
         {label}
       </label>
       <div className="relative">
@@ -71,12 +68,12 @@ export const AuthField: React.FC<AuthFieldProps> = ({ label, error, type, ...pro
           id={fieldId}
           type={isPassword && showPassword ? 'text' : type}
           aria-invalid={!!error}
-          className={`w-full rounded-lg border bg-white py-2.5 pl-3.5 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-hidden focus:ring-2 ${
+          className={`w-full rounded-xl border bg-white py-3 pl-4 text-sm text-slate-900 placeholder:text-slate-400 transition focus:outline-hidden focus:ring-4 ${
             isPassword ? 'pr-11' : 'pr-3.5'
           } ${
             error
-              ? 'border-rose-400 focus:ring-rose-500/30'
-              : 'border-stone-300 focus:border-brand-800 focus:ring-brand-800/20'
+              ? 'border-rose-400 focus:ring-rose-500/20'
+              : 'border-card-border focus:border-brand-600 focus:ring-brand-200/60'
           }`}
         />
         {isPassword && (
@@ -85,13 +82,13 @@ export const AuthField: React.FC<AuthFieldProps> = ({ label, error, type, ...pro
             onClick={() => setShowPassword((visible) => !visible)}
             aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
             aria-pressed={showPassword}
-            className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-lg text-stone-400 transition-colors hover:text-brand-800 focus-visible:text-brand-800"
+            className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-xl text-slate-400 transition-colors hover:text-brand-700 focus-visible:text-brand-700"
           >
             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         )}
       </div>
-      {error && <p className="mt-1 text-[11px] text-rose-600">{error}</p>}
+      {error && <p className="mt-1.5 text-xs text-rose-600">{error}</p>}
     </div>
   );
 };
@@ -113,7 +110,7 @@ export const AuthButton: React.FC<{ loading: boolean; children: React.ReactNode 
   <button
     type="submit"
     disabled={loading}
-    className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-brand-800 px-4 py-3 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-brand-900 disabled:cursor-not-allowed disabled:opacity-60"
+    className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-700 px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-800 focus:outline-hidden focus:ring-4 focus:ring-brand-200/70 disabled:cursor-not-allowed disabled:opacity-60"
   >
     {loading ? (
       <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />

@@ -64,16 +64,18 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccess, onGoToRegister 
           <button
             type="button"
             onClick={onGoToRegister}
-            className="font-semibold text-brand-800 underline underline-offset-2 hover:text-brand-950"
+            className="font-semibold text-brand-700 underline underline-offset-2 hover:text-brand-800"
           >
             Créer un compte
           </button>
         </p>
       }
     >
+
       {errorMessage && <AuthAlert title="Connexion impossible" message={errorMessage} />}
 
-      <form className="space-y-4" onSubmit={handleSubmit} noValidate>
+      <form className="space-y-5" onSubmit={handleSubmit} noValidate>
+        
         <AuthField
           label="Adresse e-mail"
           name="email"

@@ -65,7 +65,7 @@ export const ProjectTasksView: React.FC<ProjectTasksViewProps> = ({
   onChanged,
   onOpenTeam,
 }) => {
-  const { user, personnel } = useAuth();
+  const {personnel } = useAuth();
   const toast = useToast();
 
   const [taches, setTaches] = useState<Tache[]>([]);
@@ -115,7 +115,17 @@ export const ProjectTasksView: React.FC<ProjectTasksViewProps> = ({
     onChanged();
   };
 
-  const projetOuvert = projet.statut === 'en_cours';
+  const projetAnnule = projet.statut === 'annule';
+  const projetTermine = projet.statut === 'termine';
+  const projetOuvert = !projetAnnule;
+  // Pour créer une tâche : un projet en cours et au moins un membre actif à qui la confier
+  const raisonBlocage = projetAnnule
+    ? "Ce projet est annulé : il n'est plus possible d'y ajouter des tâches."
+    : projetTermine
+    ? 'Ce projet est terminé : passez son statut à « En cours » pour pouvoir y ajouter des tâches.'
+    : membres.length === 0
+    ? "Ajoutez d'abord au moins un membre à l'équipe : une tâche est toujours confiée à un membre du projet."
+    : null;
   const today = aujourdhui();
   const estEnRetard = (t: Tache) => t.statut === 'en_cours' && t.date_echeance < today;
   const nbEnRetard = taches.filter(estEnRetard).length;
@@ -246,7 +256,7 @@ export const ProjectTasksView: React.FC<ProjectTasksViewProps> = ({
   const handleStatusChange = async (t: Tache, statut: TaskStatus) => {
     setBusyId(t.id);
     try {
-      await api.updateTaskStatus(t.id, statut, user?.id ?? 0);
+      await api.updateTaskStatus(t.id, statut);
       const libelle = statut === 'en_cours' ? 'En cours' : statut === 'termine' ? 'Terminée' : 'Annulée';
       toast.success('Statut mis à jour', `La tâche « ${t.titre} » est maintenant « ${libelle} ».`);
       await reload();
@@ -304,14 +314,8 @@ export const ProjectTasksView: React.FC<ProjectTasksViewProps> = ({
         {canManage && (
           <button
             onClick={handleOpenCreate}
-            disabled={!projetOuvert || membres.length === 0}
-            title={
-              !projetOuvert
-                ? "Ce projet est clos : impossible d'ajouter une tâche."
-                : membres.length === 0
-                ? "Ajoutez d'abord des membres à l'équipe."
-                : undefined
-            }
+            disabled={raisonBlocage !== null}
+            title={raisonBlocage ?? undefined}
             className="px-3.5 py-2 text-xs font-medium text-white bg-brand-800 hover:bg-brand-900 rounded-lg flex items-center gap-1.5 transition-colors shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus className="w-4 h-4" />
@@ -320,10 +324,18 @@ export const ProjectTasksView: React.FC<ProjectTasksViewProps> = ({
         )}
       </div>
 
-      {canManage && !projetOuvert && (
-        <p className="text-[11px] text-slate-500">
-          Ce projet est clos : il n'est plus possible d'y ajouter des tâches.
-        </p>
+      {canManage && raisonBlocage && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 p-3 text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-xl">
+          <span>{raisonBlocage}</span>
+          {!projetAnnule && !projetTermine && membres.length === 0 && (
+            <button
+              onClick={onOpenTeam}
+              className="font-semibold text-brand-800 underline underline-offset-2 hover:text-brand-950"
+            >
+              Aller à l'équipe
+            </button>
+          )}
+        </div>
       )}
 
       {/* Erreur de chargement */}
@@ -358,16 +370,18 @@ export const ProjectTasksView: React.FC<ProjectTasksViewProps> = ({
           description={
             !canManage
               ? "Aucune tâche n'a encore été planifiée sur ce projet."
+              : projetAnnule
+              ? "Ce projet est annulé : il n'est plus possible d'y ajouter des tâches."
+              : projetTermine
+              ? 'Ce projet est terminé : passez son statut à « En cours » pour pouvoir y ajouter des tâches.'
               : membres.length === 0
               ? "Constituez d'abord l'équipe : une tâche est toujours confiée à un membre du projet."
-              : !projetOuvert
-              ? "Ce projet est clos : il n'est plus possible d'y ajouter des tâches."
               : 'Planifiez la première tâche et confiez-la à un membre de l’équipe.'
           }
           action={
-            canManage && membres.length === 0
+            canManage && !projetAnnule && !projetTermine && membres.length === 0
               ? { label: "Aller à l'équipe", onClick: onOpenTeam }
-              : canManage && projetOuvert
+              : canManage && projetOuvert && !projetTermine && membres.length > 0
               ? { label: 'Créer une tâche', onClick: handleOpenCreate }
               : undefined
           }

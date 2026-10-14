@@ -12,20 +12,19 @@ import {
 import { ProjectStatusBadge } from '../common/Badge';
 import { ProgressBar } from '../common/ProgressBar';
 import { Modal } from '../common/Modal';
+import { ConfirmModal } from '../common/ConfirmModal';
 import { ProjectMembersView } from './ProjectMembersView';
 import { ProjectTasksView } from './ProjectTasksView';
+import { ProjectStatsView } from './ProjectStatsView';
 import { formatJour, initiale } from '../../utils/format';
 import {
   ArrowLeft,
   Calendar,
   Users,
   CheckSquare,
-  BarChart2,
   FileText,
-  Edit,
-  Shield,
-  Briefcase,
   AlertCircle,
+  BarChart2,
 } from 'lucide-react';
 
 type Tab = 'vue-ensemble' | 'taches' | 'membres' | 'statistiques';
@@ -38,12 +37,11 @@ interface ProjectDetailViewProps {
 }
 
 // `ready` : onglet déjà branché sur l'API (les autres restent masqués jusqu'à leur étape)
-const TABS: { id: Tab; label: string; icon: React.ElementType; ready: boolean }[] = [
+const TABS: { id: Tab; label: string; icon: React.ElementType; ready: boolean; managersOnly?: boolean }[] = [
   { id: 'vue-ensemble', label: "Vue d'ensemble", icon: FileText, ready: true },
-  { id: 'taches', label: 'Tâches', icon: CheckSquare, ready: false },
-  { id: 'membres', label: 'Équipe', icon: Users, ready: true },
-  { id: 'statistiques', label: 'Statistiques', icon: BarChart2, ready: false },
   { id: 'taches', label: 'Tâches', icon: CheckSquare, ready: true },
+  { id: 'membres', label: 'Équipe', icon: Users, ready: true },
+  { id: 'statistiques', label: 'Statistiques & Avancement', icon: BarChart2, ready: true, managersOnly: true },
 ];
 
 type EditField = 'titre' | 'description' | 'statut' | 'date_debut' | 'date_fin';
@@ -86,6 +84,11 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
   const [editErrors, setEditErrors] = useState<Partial<Record<EditField, string>>>({});
   const [editMessage, setEditMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Suppression du projet (administrateur)
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const load = async () => {
     setLoadError(null);
@@ -161,6 +164,8 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
   const canEdit = isAdmin; // le backend réserve la modification du projet à l'administrateur
 
   const monRole = isAdmin ? 'Administrateur' : monMembre?.fonction?.libelle ?? 'Membre';
+  const ongletActif: Tab = activeTab === 'statistiques' && !canManage ? 'vue-ensemble' : activeTab;
+
 
   const kpis = [
     { label: 'Tâches', value: stats.total_taches, tone: 'text-slate-900' },
@@ -234,6 +239,21 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
     }
   };
 
+  const handleDeleteProject = async () => {
+    setDeleteError(null);
+    setIsDeleting(true);
+    try {
+      await api.deleteProjet(projet.id);
+      toast.success('Projet supprimé', `Le projet « ${projet.titre} » a été supprimé.`);
+      setIsDeleteOpen(false);
+      onNavigate('projets');
+    } catch (err: any) {
+      setDeleteError(err?.message || 'Impossible de supprimer le projet.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* En-tête */}
@@ -256,21 +276,8 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
                   : 'bg-slate-100 text-slate-700 border-slate-200'
               }`}
             >
-              {isAdmin && <Shield className="w-3 h-3" />}
-              {!isAdmin && estChef && <Briefcase className="w-3 h-3" />}
               {monRole}
             </span>
-
-            {canEdit && (
-              <button
-                onClick={handleOpenEdit}
-                className="p-1.5 text-slate-500 hover:text-brand-800 rounded-lg hover:bg-slate-100 transition-colors"
-                title="Modifier les informations du projet"
-                aria-label="Modifier le projet"
-              >
-                <Edit className="w-4 h-4" />
-              </button>
-            )}
           </div>
         </div>
 
@@ -301,19 +308,41 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4 pt-3 border-t border-slate-100 text-xs text-slate-500">
-          <div className="flex items-center gap-1.5 font-mono">
-            <Calendar className="w-3.5 h-3.5 text-slate-400" />
-            <span>
-              Du {formatJour(projet.date_debut)} au {formatJour(projet.date_fin_prevue)}
-            </span>
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">
+          <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
+            <div className="flex items-center gap-1.5 font-mono">
+              <Calendar className="w-3.5 h-3.5 text-slate-400" />
+              <span>
+                Du {formatJour(projet.date_debut)} au {formatJour(projet.date_fin_prevue)}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Users className="w-3.5 h-3.5 text-slate-400" />
+              <span>
+                {membres.length} membre{membres.length > 1 ? 's' : ''} actif{membres.length > 1 ? 's' : ''}
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <Users className="w-3.5 h-3.5 text-slate-400" />
-            <span>
-              {membres.length} membre{membres.length > 1 ? 's' : ''} actif{membres.length > 1 ? 's' : ''}
-            </span>
-          </div>
+
+          {canEdit && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleOpenEdit}
+                className="px-3.5 py-2 text-xs font-medium text-white bg-brand-800 hover:bg-brand-900 rounded-lg transition-colors shadow-xs"
+              >
+                Modifier le projet
+              </button>
+              <button
+                onClick={() => {
+                  setDeleteError(null);
+                  setIsDeleteOpen(true);
+                }}
+                className="px-3.5 py-2 text-xs font-medium text-rose-700 bg-white border border-rose-200 hover:bg-rose-50 rounded-lg transition-colors"
+              >
+                Supprimer le projet
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="pt-2">
@@ -328,9 +357,9 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
       {/* Onglets */}
       <div className="border-b border-slate-200">
         <nav className="flex space-x-6 overflow-x-auto">
-          {TABS.filter((t) => t.ready).map((t) => {
+          {TABS.filter((t) => t.ready && (!t.managersOnly || canManage)).map((t) => {
             const Icon = t.icon;
-            const actif = activeTab === t.id;
+            const actif = ongletActif === t.id;
             return (
               <button
                 key={t.id}
@@ -352,7 +381,7 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
       </div>
 
       {/* Contenu */}
-      {activeTab === 'vue-ensemble' && (
+      {ongletActif === 'vue-ensemble' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-white p-5 rounded-xl border border-slate-200">
@@ -399,13 +428,13 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
               onClick={() => setActiveTab('membres')}
               className="mt-4 w-full py-1.5 text-xs font-medium text-brand-800 bg-brand-50 hover:bg-brand-100 border border-brand-200 rounded-lg transition-colors text-center"
             >
-              {canManage && membres.length === 0 ? "Constituer l'équipe" : "Voir toute l'équipe"}
+              {canManage && membres.length === 0 ? 'Constituer l\'équipe' : "Voir toute l'équipe"}
             </button>
           </div>
         </div>
       )}
 
-      {activeTab === 'taches' && (
+      {ongletActif === 'taches' && (
         <ProjectTasksView
           projet={projet}
           membres={membres}
@@ -414,9 +443,8 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
           onOpenTeam={() => setActiveTab('membres')}
         />
       )}
-      
 
-      {activeTab === 'membres' && (
+      {ongletActif === 'membres' && (
         <ProjectMembersView
           projet={projet}
           membres={membres}
@@ -424,8 +452,9 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
           canManage={canManage}
           onChanged={load}
         />
-        
       )}
+
+      {ongletActif === 'statistiques' && <ProjectStatsView stats={stats} membres={membres} />}
 
       {/* Modification du projet (administrateur) */}
       <Modal
@@ -491,6 +520,10 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
               <option value="annule">Annulé</option>
             </select>
             {editErrors.statut && <p className="text-[11px] text-rose-600 mt-1">{editErrors.statut}</p>}
+            <p className="text-[11px] text-slate-500 mt-1">
+              Le statut passe automatiquement à « Terminé » quand toutes les tâches sont terminées, et revient à
+              « En cours » dès qu'une tâche est rouverte ou ajoutée.
+            </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -544,6 +577,30 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
           </div>
         </form>
       </Modal>
+
+      {/* Suppression du projet (administrateur) */}
+      <ConfirmModal
+        isOpen={isDeleteOpen}
+        onClose={() => setIsDeleteOpen(false)}
+        onConfirm={handleDeleteProject}
+        title="Supprimer ce projet ?"
+        message={`Le projet « ${projet.titre} » sera définitivement supprimé, avec ses ${stats.total_taches} tâche${
+          stats.total_taches > 1 ? 's' : ''
+        } et son équipe. Cette action est irréversible.`}
+        confirmLabel="Supprimer le projet"
+        isLoading={isDeleting}
+        details={
+          deleteError ? (
+            <div
+              role="alert"
+              className="flex items-start gap-2 p-3 text-xs text-rose-800 bg-rose-50 border border-rose-200 rounded-xl"
+            >
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+              <span>{deleteError}</span>
+            </div>
+          ) : undefined
+        }
+      />
     </div>
   );
 };

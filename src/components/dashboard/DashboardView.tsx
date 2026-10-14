@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useNotifications } from '../../context/NotificationsContext';
 import { api } from '../../services/api';
 import { Projet, Tache } from '../../types/sgp';
 import { ProgressBar } from '../common/ProgressBar';
-import { ProjectStatusBadge } from '../common/Badge';
+import { TaskStatusBadge, TaskPriorityBadge, ProjectStatusBadge } from '../common/Badge';
 import { EmptyState } from '../common/EmptyState';
 import { formatJour } from '../../utils/format';
 import { FolderKanban, AlertCircle } from 'lucide-react';
@@ -13,16 +14,6 @@ interface DashboardViewProps {
 }
 
 const aujourdhui = () => new Date().toISOString().split('T')[0];
-
-const dateDuJour = () => {
-  const texte = new Date().toLocaleDateString('fr-FR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-  return texte.charAt(0).toUpperCase() + texte.slice(1);
-};
 
 // Carte « répartition » : total, barre segmentée et légende
 const RepartitionTaches: React.FC<{
@@ -61,9 +52,7 @@ const RepartitionTaches: React.FC<{
         ) : (
           segments
             .filter((s) => s.n > 0)
-            .map((s) => (
-              <div key={s.label} className={`rounded-full ${s.bar}`} style={{ flex: s.n }} />
-            ))
+            .map((s) => <div key={s.label} className={`rounded-full ${s.bar}`} style={{ flex: s.n }} />)
         )}
       </div>
 
@@ -86,16 +75,23 @@ const RepartitionTaches: React.FC<{
 
 export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const { user, personnel, isAdmin } = useAuth();
+  const { unreadCount } = useNotifications();
+
+  // « Mode membre » : le compte a une fiche personnel, donc des tâches qui lui sont confiées.
+  // Un administrateur sans fiche voit à la place les tâches de tous les projets.
+  const modeMembre = !!personnel;
 
   const [projets, setProjets] = useState<Projet[]>([]);
   const [taches, setTaches] = useState<Tache[]>([]);
-  const [aDesTaches, setADesTaches] = useState(false); // faux pour un compte sans fiche personnel (admin)
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = async () => {
     setLoadError(null);
-    const [resProjets, resTaches] = await Promise.allSettled([api.getProjets(), api.getMyTasks()]);
+    const [resProjets, resTaches] = await Promise.allSettled([
+      api.getProjets(),
+      modeMembre ? api.getMyTasks() : isAdmin ? api.getUpcomingTasks() : Promise.resolve([] as Tache[]),
+    ]);
 
     if (resProjets.status === 'fulfilled') {
       setProjets(resProjets.value);
@@ -103,15 +99,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       setLoadError(resProjets.reason?.message || 'Impossible de charger le tableau de bord.');
     }
 
-    if (resTaches.status === 'fulfilled') {
-      setTaches(resTaches.value);
-      setADesTaches(true);
-    } else {
-      // 404 : pas de fiche personnel. Toute autre erreur : on masque simplement la partie « tâches ».
-      setTaches([]);
-      setADesTaches(false);
-    }
-
+    // Si seules les tâches échouent, on affiche simplement une liste vide
+    setTaches(resTaches.status === 'fulfilled' ? resTaches.value : []);
     setIsLoading(false);
   };
 
@@ -120,98 +109,111 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   }, []);
 
   const today = aujourdhui();
-  const enCours = projets.filter((p) => p.statut === 'en_cours');
+
+  // Projets
+  const actifs = projets.filter((p) => p.statut === 'en_cours');
   const termines = projets.filter((p) => p.statut === 'termine');
   const annules = projets.filter((p) => p.statut === 'annule');
-  const avancementMoyen =
-    enCours.length > 0
-      ? Math.round(enCours.reduce((somme, p) => somme + (p.taux_avancement ?? 0), 0) / enCours.length)
-      : 0;
+  const recents = projets.slice(0, 3); // l'API renvoie les plus récents d'abord
 
-  const mesEnCours = taches.filter((t) => t.statut === 'en_cours');
-  const mesEnRetard = mesEnCours.filter((t) => t.date_echeance < today);
-  const mesTerminees = taches.filter((t) => t.statut === 'termine');
-  const mesAnnulees = taches.filter((t) => t.statut === 'annule');
-  const prochaines = [...mesEnCours].sort((a, b) => a.date_echeance.localeCompare(b.date_echeance)).slice(0, 5);
-
-  const projetsParEcheance = [...enCours]
-    .sort((a, b) => a.date_fin_prevue.localeCompare(b.date_fin_prevue))
-    .slice(0, 5);
-
-  // Somme d'un compteur de tâches sur tous les projets visibles (admin)
+  // Compteurs de tâches : les miennes (membre) ou celles de tous les projets (admin)
   const somme = (champ: 'taches_en_cours' | 'taches_terminees' | 'taches_annulees' | 'taches_en_retard') =>
     projets.reduce((total, p) => total + (p[champ] ?? 0), 0);
 
-  const prenom = personnel?.prenom || user?.name || '';
+  const mesEnCours = taches.filter((t) => t.statut === 'en_cours');
+  const mesEnRetard = mesEnCours.filter((t) => t.date_echeance < today);
 
-  type Kpi = { label: string; value: string | number; valueClass?: string; onClick?: () => void };
+  const compteurs = modeMembre
+    ? {
+        enCours: mesEnCours.length,
+        enRetard: mesEnRetard.length,
+        terminees: taches.filter((t) => t.statut === 'termine').length,
+        annulees: taches.filter((t) => t.statut === 'annule').length,
+      }
+    : {
+        enCours: somme('taches_en_cours'),
+        enRetard: somme('taches_en_retard'),
+        terminees: somme('taches_terminees'),
+        annulees: somme('taches_annulees'),
+      };
 
-  const kpis: Kpi[] = aDesTaches
-    ? [
-        { label: 'Projets en cours', value: enCours.length, onClick: () => onNavigate('projets') },
-        { label: 'Mes tâches en cours', value: mesEnCours.length, onClick: () => onNavigate('mes-taches') },
-        {
-          label: 'Tâches en retard',
-          value: mesEnRetard.length,
-          valueClass: mesEnRetard.length > 0 ? 'text-rose-600' : undefined,
-          onClick: () => onNavigate('mes-taches', { filter: 'overdue' }),
-        },
-        { label: 'Tâches terminées', value: mesTerminees.length, onClick: () => onNavigate('mes-taches') },
-      ]
-    : [
-        { label: 'Projets en cours', value: enCours.length, onClick: () => onNavigate('projets') },
-        { label: 'Projets terminés', value: termines.length, onClick: () => onNavigate('projets') },
-        { label: 'Avancement moyen', value: `${avancementMoyen} %` },
-        { label: 'Projets au total', value: projets.length, onClick: () => onNavigate('projets') },
-      ];
-
-  const ligneProjet = (p: Projet) => (
-    <button
-      key={p.id}
-      onClick={() => onNavigate('project-detail', { id: p.id })}
-      className="w-full text-left p-3 rounded-lg hover:bg-slate-50 transition-colors"
-    >
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-semibold text-slate-900 truncate">{p.titre}</span>
-        <ProjectStatusBadge status={p.statut} />
-      </div>
-      <div className="mt-2">
-        <ProgressBar
-          progress={p.taux_avancement ?? 0}
-          size="sm"
-          colorClass={(p.taux_avancement ?? 0) >= 100 ? 'bg-emerald-600' : 'bg-brand-700'}
-        />
-      </div>
-      <div className="mt-1.5 text-[11px] text-slate-500 font-mono tabular-nums">
-        Échéance {formatJour(p.date_fin_prevue)}
-      </div>
-    </button>
-  );
-
-  const lienSection = 'text-xs font-medium text-brand-800 hover:text-brand-950';
+  const aEcheanceProche = [...mesEnCours]
+    .sort((a, b) => a.date_echeance.localeCompare(b.date_echeance))
+    .slice(0, 5);
 
   // Nouvel inscrit : pas encore de projet ni de tâche
   const nouvelArrivant = !isLoading && !loadError && !isAdmin && projets.length === 0 && taches.length === 0;
+
+  type Kpi = {
+    label: string;
+    value: number;
+    detail: string;
+    valueClass?: string;
+    detailClass?: string;
+    onClick?: () => void;
+  };
+
+  const kpis: Kpi[] = [
+    {
+      label: 'Projets actifs',
+      value: actifs.length,
+      detail: `Sur ${projets.length} projet${projets.length > 1 ? 's' : ''} au total`,
+      onClick: () => onNavigate('projets'),
+    },
+    {
+      label: modeMembre ? 'Mes tâches en cours' : 'Tâches en cours',
+      value: compteurs.enCours,
+      detail: modeMembre ? 'À traiter et clôturer' : 'Tous projets confondus',
+      onClick: modeMembre ? () => onNavigate('mes-taches') : undefined,
+    },
+    {
+      label: 'Tâches en retard',
+      value: compteurs.enRetard,
+      detail: 'Échéance dépassée',
+      valueClass: compteurs.enRetard > 0 ? 'text-rose-600' : undefined,
+      detailClass: compteurs.enRetard > 0 ? 'text-rose-500' : undefined,
+      onClick: modeMembre ? () => onNavigate('mes-taches', { filter: 'overdue' }) : undefined,
+    },
+    {
+      label: 'Notifications',
+      value: unreadCount,
+      detail: unreadCount > 0 ? 'Messages non lus' : 'À jour',
+      onClick: () => onNavigate('notifications'),
+    },
+  ];
+
+  const lienSection = 'text-xs font-medium text-brand-800 hover:text-brand-950 transition-colors';
 
   return (
     <div className="space-y-6">
       {/* En-tête */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
-            Bonjour{prenom ? `, ${prenom}` : ''}
-          </h1>
-          <p className="text-xs text-slate-500 mt-1">{dateDuJour()}</p>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Tableau de bord</h1>
+          <p className="text-xs text-slate-500 mt-1">
+            Bienvenue, <span className="font-semibold text-slate-700">{user?.name}</span>. Vue d'ensemble de vos
+            projets et échéances.
+          </p>
         </div>
 
-        {isAdmin && (
-          <button
-            onClick={() => onNavigate('projects-new')}
-            className="px-3.5 py-2 text-xs font-medium text-white bg-brand-800 hover:bg-brand-900 rounded-lg transition-colors shadow-xs shrink-0"
-          >
-            Nouveau projet
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <button
+              onClick={() => onNavigate('projects-new')}
+              className="px-3.5 py-2 text-xs font-medium text-white bg-brand-800 hover:bg-brand-900 rounded-lg transition-colors shadow-xs"
+            >
+              Nouveau projet
+            </button>
+          )}
+          {modeMembre && (
+            <button
+              onClick={() => onNavigate('mes-taches')}
+              className="px-3.5 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors"
+            >
+              Mes tâches
+            </button>
+          )}
+        </div>
       </div>
 
       {loadError && (
@@ -258,10 +260,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
             {kpis.map((k) => {
               const contenu = (
                 <>
-                  <p className="text-[11px] font-medium text-slate-500">{k.label}</p>
-                  <p className={`text-3xl font-bold tabular-nums mt-2 ${k.valueClass ?? 'text-slate-900'}`}>
+                  <span className="text-xs font-medium text-slate-500">{k.label}</span>
+                  <p className={`text-2xl font-bold font-mono tabular-nums mt-2 ${k.valueClass ?? 'text-slate-900'}`}>
                     {k.value}
                   </p>
+                  <p className={`text-[11px] mt-1 ${k.detailClass ?? 'text-slate-400'}`}>{k.detail}</p>
                 </>
               );
 
@@ -282,126 +285,167 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Colonne principale */}
+            {/* Tâches à échéance proche */}
             <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-5 h-fit">
-              {aDesTaches ? (
-                <>
-                  <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-sm font-bold text-slate-900">Mes prochaines échéances</h2>
-                    <button onClick={() => onNavigate('mes-taches')} className={lienSection}>
-                      Toutes mes tâches
-                    </button>
-                  </div>
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900">
+                    {modeMembre ? 'Mes tâches à échéance proche' : 'Tâches à échéance proche'}
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">Triées par date d'échéance la plus urgente.</p>
+                </div>
+                {modeMembre && (
+                  <button onClick={() => onNavigate('mes-taches')} className={lienSection}>
+                    Voir tout
+                  </button>
+                )}
+              </div>
 
-                  {prochaines.length === 0 ? (
-                    <p className="text-xs text-slate-500 py-6 text-center">Aucune tâche en cours.</p>
-                  ) : (
-                    <div className="divide-y divide-slate-100">
-                      {prochaines.map((t) => {
-                        const retard = t.date_echeance < today;
-                        return (
-                          <button
-                            key={t.id}
-                            onClick={() => onNavigate('project-detail', { id: t.projet_id, tab: 'taches' })}
-                            className="w-full flex items-center justify-between gap-3 py-3 text-left hover:bg-slate-50 px-2 -mx-2 rounded-lg transition-colors"
-                          >
-                            <div className="min-w-0">
-                              <p className="text-xs font-semibold text-slate-900 truncate">{t.titre}</p>
-                              <p className="text-[11px] text-slate-500 truncate">
-                                {t.projet?.titre ?? `Projet #${t.projet_id}`}
-                              </p>
-                            </div>
-                            <span
-                              className={`text-[11px] font-mono tabular-nums whitespace-nowrap ${
-                                retard ? 'text-rose-700 font-semibold' : 'text-slate-600'
-                              }`}
-                            >
-                              {retard && 'En retard · '}
-                              {formatJour(t.date_echeance)}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <>
-                  <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-sm font-bold text-slate-900">Projets en cours</h2>
-                    <button onClick={() => onNavigate('projets')} className={lienSection}>
-                      Tous les projets
-                    </button>
+              <div className="mt-3 divide-y divide-slate-100">
+                {aEcheanceProche.length === 0 ? (
+                  <div className="py-8 text-center text-xs text-slate-400">
+                    Aucune tâche en cours actuellement.
                   </div>
-                  {projetsParEcheance.length === 0 ? (
-                    <p className="text-xs text-slate-500 py-6 text-center">Aucun projet en cours.</p>
-                  ) : (
-                    <div className="space-y-1">{projetsParEcheance.map(ligneProjet)}</div>
-                  )}
-                </>
-              )}
+                ) : (
+                  aEcheanceProche.map((tache) => {
+                    const enRetard = tache.date_echeance < today;
+
+                    return (
+                      <button
+                        key={tache.id}
+                        onClick={() => onNavigate('project-detail', { id: tache.projet_id, tab: 'taches' })}
+                        className="w-full text-left py-3 px-2 rounded-lg hover:bg-slate-50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <TaskPriorityBadge priority={tache.priorite} />
+                            <h3 className="text-xs font-semibold text-slate-900 truncate">{tache.titre}</h3>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-x-2 text-[11px] text-slate-500 mt-1">
+                            <span className="text-brand-800 font-medium truncate max-w-[200px]">
+                              {tache.projet?.titre ?? `Projet #${tache.projet_id}`}
+                            </span>
+                            {!modeMembre && tache.responsable && (
+                              <>
+                                <span aria-hidden="true">·</span>
+                                <span>
+                                  {tache.responsable.prenom} {tache.responsable.nom}
+                                </span>
+                              </>
+                            )}
+                            <span aria-hidden="true">·</span>
+                            <span className={`font-mono ${enRetard ? 'text-rose-600 font-bold' : ''}`}>
+                              Échéance : {formatJour(tache.date_echeance)}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="shrink-0">
+                          <TaskStatusBadge status={tache.statut} isOverdue={enRetard} />
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
             </div>
 
             {/* Colonne latérale */}
             <div className="space-y-6">
-              {aDesTaches ? (
-                <>
-                  <RepartitionTaches
-                    titre="Répartition de mes tâches"
-                    terminees={mesTerminees.length}
-                    enCours={mesEnCours.length}
-                    annulees={mesAnnulees.length}
-                    enRetard={mesEnRetard.length}
-                  />
-
-                  <div className="bg-white rounded-xl border border-slate-200 p-5 h-fit">
-                    <div className="flex items-center justify-between mb-3">
-                      <h2 className="text-sm font-bold text-slate-900">Mes projets</h2>
-                      <button onClick={() => onNavigate('projets')} className={lienSection}>
-                        Voir tout
-                      </button>
-                    </div>
-                    {projetsParEcheance.length === 0 ? (
-                      <p className="text-xs text-slate-500 py-4 text-center">Aucun projet en cours.</p>
-                    ) : (
-                      <div className="space-y-1">{projetsParEcheance.slice(0, 4).map(ligneProjet)}</div>
-                    )}
+              {/* Projets récents */}
+              <div className="bg-white rounded-xl border border-slate-200 p-5 h-fit">
+                <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                  <div>
+                    <h2 className="text-sm font-bold text-slate-900">Projets récents</h2>
+                    <p className="text-xs text-slate-500 mt-0.5">Avancement et chef de projet</p>
                   </div>
-                </>
-              ) : (
-                <>
-                  <div className="bg-white rounded-xl border border-slate-200 p-5 h-fit">
-                    <h2 className="text-sm font-bold text-slate-900 mb-4">Répartition des projets</h2>
-                    <div className="space-y-4">
-                      {[
-                        { label: 'En cours', n: enCours.length, bar: 'bg-brand-700' },
-                        { label: 'Terminés', n: termines.length, bar: 'bg-emerald-600' },
-                        { label: 'Annulés', n: annules.length, bar: 'bg-slate-400' },
-                      ].map((ligne) => (
-                        <div key={ligne.label}>
-                          <div className="flex items-center justify-between text-xs mb-1">
-                            <span className="text-slate-600">{ligne.label}</span>
-                            <span className="font-semibold tabular-nums text-slate-900">{ligne.n}</span>
+                  <button onClick={() => onNavigate('projets')} className={lienSection}>
+                    Tous
+                  </button>
+                </div>
+
+                <div className="mt-3 space-y-4">
+                  {recents.length === 0 ? (
+                    <p className="py-6 text-center text-xs text-slate-400">Aucun projet pour le moment.</p>
+                  ) : (
+                    recents.map((projet) => {
+                      const terminees = projet.taches_terminees ?? 0;
+                      const nonAnnulees = (projet.taches_en_cours ?? 0) + terminees;
+                      const chefs = projet.chefs_noms ?? [];
+                      const taux = projet.taux_avancement ?? 0;
+
+                      return (
+                        <button
+                          key={projet.id}
+                          onClick={() => onNavigate('project-detail', { id: projet.id })}
+                          className="w-full text-left p-3 rounded-lg border border-slate-100 hover:border-slate-200 hover:bg-slate-50/60 transition-colors"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <h3 className="text-xs font-bold text-slate-900 line-clamp-1">{projet.titre}</h3>
+                            <ProjectStatusBadge status={projet.statut} />
                           </div>
-                          <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full ${ligne.bar}`}
-                              style={{ width: `${projets.length ? (ligne.n / projets.length) * 100 : 0}%` }}
+
+                          <p className="text-[11px] text-slate-500 mt-1 line-clamp-1">
+                            {projet.description || 'Aucune description.'}
+                          </p>
+
+                          <div className="mt-3">
+                            <ProgressBar
+                              progress={taux}
+                              size="sm"
+                              colorClass={taux >= 100 ? 'bg-emerald-600' : 'bg-brand-700'}
                             />
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
 
-                  <RepartitionTaches
-                    titre="Répartition des tâches"
-                    terminees={somme('taches_terminees')}
-                    enCours={somme('taches_en_cours')}
-                    annulees={somme('taches_annulees')}
-                    enRetard={somme('taches_en_retard')}
-                  />
-                </>
+                          <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between gap-2 text-[11px] text-slate-500">
+                            <span className="truncate max-w-[150px]">
+                              {chefs.length > 0 ? `Chef : ${chefs.join(', ')}` : 'Sans chef'}
+                            </span>
+                            <span className="font-mono tabular-nums text-slate-600 shrink-0">
+                              {terminees}/{nonAnnulees} tâches
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* Répartition des tâches */}
+              <RepartitionTaches
+                titre={modeMembre ? 'Répartition de mes tâches' : 'Répartition des tâches'}
+                terminees={compteurs.terminees}
+                enCours={compteurs.enCours}
+                annulees={compteurs.annulees}
+                enRetard={compteurs.enRetard}
+              />
+
+              {/* Répartition des projets (administrateur) */}
+              {isAdmin && (
+                <div className="bg-white rounded-xl border border-slate-200 p-5 h-fit">
+                  <h2 className="text-sm font-bold text-slate-900 mb-4">Répartition des projets</h2>
+                  <div className="space-y-4">
+                    {[
+                      { label: 'En cours', n: actifs.length, bar: 'bg-brand-700' },
+                      { label: 'Terminés', n: termines.length, bar: 'bg-emerald-600' },
+                      { label: 'Annulés', n: annules.length, bar: 'bg-slate-400' },
+                    ].map((ligne) => (
+                      <div key={ligne.label}>
+                        <div className="flex items-center justify-between text-xs mb-1">
+                          <span className="text-slate-600">{ligne.label}</span>
+                          <span className="font-semibold tabular-nums text-slate-900">{ligne.n}</span>
+                        </div>
+                        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${ligne.bar}`}
+                            style={{ width: `${projets.length ? (ligne.n / projets.length) * 100 : 0}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
           </div>

@@ -1,19 +1,21 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand-50: #fcf3f8;
-  --color-brand-100: #f8e3ee;
-  --color-brand-200: #efc7dd;
-  --color-brand-300: #e3a1c5;
-  --color-brand-400: #d864a4;
-  --color-brand-500: #c3287d;
-  --color-brand-600: #a51263;
-  --color-brand-700: #8f004f;
-  --color-brand-800: #670038;
-  --color-brand-900: #4c002a;
-  --color-brand-950: #2e0019;
+  --color-brand-50: #f7f7ff;
+  --color-brand-100: #efefff;
+  --color-brand-200: #e1e2ff;
+  --color-brand-300: #c9cbff;
+  --color-brand-400: #9b9cf0;
+  --color-brand-500: #7779e4;
+  --color-brand-600: #6567dc;
+  --color-brand-700: #5759d2;
+  --color-brand-800: #4c4ec2;
+  --color-brand-900: #4143a9;
+  --color-brand-950: #30327a;
 
-  --color-cream: #f6f2ec;
+  --color-cream: #f4f6fb;
+  --color-card: #ffffff;
+  --color-card-border: #e7eaf2;
 }
 
 @layer base {
@@ -27,7 +29,7 @@
 
   /* Accessible visible focus ring */
   :focus-visible {
-    outline: 2px solid #670038;
+    outline: 2px solid #5759d2;
     outline-offset: 2px;
   }
   input::-ms-reveal,

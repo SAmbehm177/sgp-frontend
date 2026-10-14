@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { LockKeyhole, Mail } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { AuthLayout, AuthField, AuthAlert, AuthButton } from './AuthLayout';
 
@@ -92,16 +93,17 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onSuccess, onGoToLog
           <button
             type="button"
             onClick={onGoToLogin}
-            className="font-semibold text-brand-800 underline underline-offset-2 hover:text-brand-950"
+            className="font-semibold text-brand-700 underline underline-offset-2 hover:text-brand-800"
           >
             Se connecter
           </button>
         </p>
       }
     >
+
       {errorMessage && <AuthAlert title="Inscription impossible" message={errorMessage} />}
 
-      <form className="space-y-4" onSubmit={handleSubmit} noValidate>
+      <form className="space-y-5" onSubmit={handleSubmit} noValidate>
         <div className="grid gap-4 sm:grid-cols-2">
           <AuthField
             label="Prénom"

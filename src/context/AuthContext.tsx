@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { User, Personnel } from '../types/sgp';
-import { api,RegisterPayload } from '../services/api';
-import { sgpStorage } from '../services/storage';
+import { api, RegisterPayload } from '../services/api';
+import { session } from '../services/session';
 import { useToast } from './ToastContext';
 
 interface AuthContextType {
@@ -10,15 +10,10 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (payload: RegisterPayload) => Promise<void>;
+  register: (data: RegisterPayload) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   isAdmin: boolean;
-  isChefDeProjet: (projetId: number) => boolean;
-  isMembre: (projetId: number) => boolean;
-  canManageProject: (projetId: number) => boolean;
-  canEditTaskStatus: (task: { projet_id: number; responsable_id: number }) => boolean;
-  canCreateTasks: (projetId: number) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,7 +28,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loadUserData = useCallback(async () => {
     try {
       setIsLoading(true);
-      if (!sgpStorage.getAuthToken()) {
+      if (!session.getToken()) {
         setUser(null);
         setPersonnel(null);
         return;
@@ -46,8 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setPersonnel(null);
       if (err?.status !== 0) {
-        sgpStorage.setAuthToken(null);
-        sgpStorage.setCurrentUserId(null);
+        session.setToken(null);
       }
     } finally {
       setIsLoading(false);
@@ -78,10 +72,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const register = async (data: RegisterPayload): Promise<void> => {
-  const res = await api.register(data);
-  setUser(res.user);
-  setPersonnel(res.personnel);
-  toast.success('Compte créé', `Bienvenue, ${res.user.name} !`);
+    const res = await api.register(data);
+    setUser(res.user);
+    setPersonnel(res.personnel);
+    toast.success('Compte créé', `Bienvenue, ${res.user.name} !`);
   };
 
   const logout = async () => {
@@ -101,58 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await loadUserData();
   };
 
-  // Role verification helpers
   const isAdmin = user?.role === 'admin';
-
-  const isChefDeProjet = useCallback(
-    (projetId: number): boolean => {
-      if (!user) return false;
-      if (isAdmin) return true; // Admin has full access
-      if (!personnel) return false;
-
-      const members = sgpStorage.getMembresByProjet(projetId);
-      const member = members.find((m) => m.personnel_id === personnel.id && m.statut === 'actif');
-      return member?.fonction?.libelle === 'Chef de projet';
-    },
-    [user, isAdmin, personnel]
-  );
-
-  const isMembre = useCallback(
-    (projetId: number): boolean => {
-      if (!user) return false;
-      if (isAdmin) return true;
-      if (!personnel) return false;
-
-      const members = sgpStorage.getMembresByProjet(projetId);
-      return members.some((m) => m.personnel_id === personnel.id && m.statut === 'actif');
-    },
-    [user, isAdmin, personnel]
-  );
-
-  const canManageProject = useCallback(
-    (projetId: number): boolean => {
-      return isAdmin || isChefDeProjet(projetId);
-    },
-    [isAdmin, isChefDeProjet]
-  );
-
-  const canCreateTasks = useCallback(
-    (projetId: number): boolean => {
-      return isAdmin || isChefDeProjet(projetId);
-    },
-    [isAdmin, isChefDeProjet]
-  );
-
-  const canEditTaskStatus = useCallback(
-    (task: { projet_id: number; responsable_id: number }): boolean => {
-      if (!user) return false;
-      if (isAdmin) return true;
-      if (isChefDeProjet(task.projet_id)) return true;
-      if (personnel && task.responsable_id === personnel.id) return true;
-      return false;
-    },
-    [user, isAdmin, isChefDeProjet, personnel]
-  );
 
   return (
     <AuthContext.Provider
@@ -166,11 +109,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         logout,
         refreshUser,
         isAdmin,
-        isChefDeProjet,
-        isMembre,
-        canManageProject,
-        canEditTaskStatus,
-        canCreateTasks,
       }}
     >
       {children}

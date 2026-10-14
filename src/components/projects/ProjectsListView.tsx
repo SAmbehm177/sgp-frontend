@@ -8,7 +8,7 @@ import { ProjectStatusBadge } from '../common/Badge';
 import { EmptyState } from '../common/EmptyState';
 import { Modal } from '../common/Modal';
 import { formatJour } from '../../utils/format';
-import { FolderKanban, Plus, Search, Calendar, Users, AlertCircle } from 'lucide-react';
+import { Folder, Plus, Search, Calendar, Users, AlertCircle } from 'lucide-react';
 
 interface ProjectsListViewProps {
   onNavigate: (route: string, params?: any) => void;
@@ -190,7 +190,7 @@ export const ProjectsListView: React.FC<ProjectsListViewProps> = ({
       {/* Aucun projet : état vide (nouvel inscrit ou plateforme vierge) */}
       {!isLoading && !loadError && projets.length === 0 && (
         <EmptyState
-          icon={<FolderKanban className="w-6 h-6" />}
+          icon={<Folder className="w-6 h-6" />}
           title="Aucun projet pour le moment"
           description={
             isAdmin
@@ -237,7 +237,7 @@ export const ProjectsListView: React.FC<ProjectsListViewProps> = ({
 
           {filtered.length === 0 ? (
             <div className="p-12 text-center bg-white rounded-xl border border-slate-200">
-              <FolderKanban className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+              <Folder className="w-8 h-8 text-slate-300 mx-auto mb-2" />
               <h3 className="text-sm font-semibold text-slate-800">Aucun projet trouvé</h3>
               <p className="text-xs text-slate-500 mt-1">Modifiez votre recherche ou les filtres.</p>
             </div>

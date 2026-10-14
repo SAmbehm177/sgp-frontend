@@ -13,22 +13,18 @@ export const ProjectStatusBadge: React.FC<{ status: ProjectStatus; className?: s
   const configs = {
     en_cours: {
       label: 'En cours',
-      dotClass: 'bg-emerald-500',
       bgClass: 'bg-emerald-50/80 text-emerald-800 border-emerald-200/60',
     },
     termine: {
       label: 'Terminé',
-      dotClass: 'bg-blue-500',
       bgClass: 'bg-blue-50/80 text-blue-800 border-blue-200/60',
     },
     suspendu: {
       label: 'Suspendu',
-      dotClass: 'bg-amber-500',
       bgClass: 'bg-amber-50/80 text-amber-800 border-amber-200/60',
     },
     annule: {
       label: 'Annulé',
-      dotClass: 'bg-rose-500',
       bgClass: 'bg-rose-50/80 text-rose-800 border-rose-200/60',
     },
   };
@@ -39,7 +35,6 @@ export const ProjectStatusBadge: React.FC<{ status: ProjectStatus; className?: s
     <span
       className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-medium rounded-md border ${current.bgClass} ${className} whitespace-nowrap`}
     >
-      <span className={`w-1.5 h-1.5 rounded-full ${current.dotClass}`} aria-hidden="true" />
       {current.label}
     </span>
   );
@@ -65,17 +60,14 @@ export const TaskStatusBadge: React.FC<{
   const configs = {
     en_cours: {
       label: 'En cours',
-      dotClass: 'bg-amber-500',
       bgClass: 'bg-amber-50/80 text-amber-800 border-amber-200/70',
     },
     termine: {
       label: 'Terminé',
-      dotClass: 'bg-emerald-500',
       bgClass: 'bg-emerald-50/80 text-emerald-800 border-emerald-200/70',
     },
     annule: {
       label: 'Annulé',
-      dotClass: 'bg-slate-400',
       bgClass: 'bg-slate-100 text-slate-700 border-slate-200',
     },
   };
@@ -86,7 +78,6 @@ export const TaskStatusBadge: React.FC<{
     <span
       className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-medium rounded-md border ${current.bgClass} ${className} whitespace-nowrap`}
     >
-      <span className={`w-1.5 h-1.5 rounded-full ${current.dotClass}`} aria-hidden="true" />
       {current.label}
     </span>
   );

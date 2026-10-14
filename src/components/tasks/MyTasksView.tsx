@@ -81,7 +81,7 @@ export const MyTasksView: React.FC<MyTasksViewProps> = ({ onNavigate, initialFil
   const handleStatusChange = async (t: Tache, statut: TaskStatus) => {
     setBusyId(t.id);
     try {
-      await api.updateTaskStatus(t.id, statut, user?.id ?? 0);
+      await api.updateTaskStatus(t.id, statut);
       const libelle = statut === 'en_cours' ? 'En cours' : statut === 'termine' ? 'Terminée' : 'Annulée';
       toast.success('Statut mis à jour', `La tâche « ${t.titre} » est maintenant « ${libelle} ».`);
       await loadTaches();

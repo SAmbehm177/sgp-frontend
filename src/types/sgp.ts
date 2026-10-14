@@ -53,10 +53,19 @@ export interface Projet {
   taches_terminees?: number;
   taches_annulees?: number;
   taches_en_retard?: number;
+  chefs_noms?: string[];
   ma_fonction_id?: number;
 }
 
 export type MemberStatus = 'actif' | 'retire';
+
+export interface ChargeMembre {
+  personnel_id: number;
+  total: number; // tâches non annulées
+  terminees: number;
+  en_cours: number;
+  en_retard: number;
+}
 
 export interface MembreProjet {
   id: number;
@@ -90,24 +99,22 @@ export interface Tache {
   
 }
 
-export type NotificationType = 
-  | 'affectation_tache'
-  | 'changement_statut'
-  | 'projet'
-  | 'systeme';
+export type NotificationType =
+  | 'tache_affectee'
+  | 'tache_statut_modifie'
+  | 'membre_ajoute'
+  | 'membre_retire'
+  | 'autre';
 
 export interface NotificationItem {
-  id: number;
-  user_id: number;
-  titre: string;
-  message: string;
+  id: string; // identifiant unique (UUID) généré par Laravel
   type: NotificationType;
+  message: string;
   lue: boolean;
   created_at: string;
-  data?: {
-    tache_id?: number;
-    projet_id?: number;
-  };
+  projet_id?: number;
+  projet_titre?: string; 
+  tache_id?: number;
 }
 
 export interface StatistiquesProjet {
@@ -117,6 +124,17 @@ export interface StatistiquesProjet {
   taches_en_cours: number;
   taches_annulees: number;
   taches_en_retard: number;
+  // Détails réservés à l'administrateur et aux chefs de projet (vides pour un simple membre)
+  par_priorite: { basse: number; moyenne: number; haute: number };
+  charge_par_membre: ChargeMembre[];
+}
+
+export interface ChargeMembre {
+  personnel_id: number;
+  total: number; // tâches non annulées
+  terminees: number;
+  en_cours: number;
+  en_retard: number;
 }
 
 export interface ApiConfig {
