@@ -15,6 +15,7 @@ import {
   TaskStatus,
   TaskPriority,
   NotificationItem,
+  Message,
 } from '../types/sgp';
 
 export function mapPersonnel(raw: any, userId?: number): Personnel | null {
@@ -237,5 +238,20 @@ export function mapNotification(raw: any): NotificationItem {
     projet_id: data.projet_id !== undefined && data.projet_id !== null ? Number(data.projet_id) : undefined,
     projet_titre: typeof data.projet_titre === 'string' ? data.projet_titre : undefined,
     tache_id: data.tache_id !== undefined && data.tache_id !== null ? Number(data.tache_id) : undefined,
+  };
+}
+
+// --- Messages (discussion d'un projet) ---
+
+// L'auteur s'affiche avec le nom de sa fiche personnel, à défaut avec le nom du compte (admin)
+export function mapMessage(raw: any): Message {
+  const p = raw.auteur?.personnel;
+  return {
+    id: raw.id,
+    projet_id: raw.projet_id,
+    user_id: raw.user_id,
+    contenu: raw.contenu,
+    auteur_nom: p ? `${p.prenom} ${p.nom}` : raw.auteur?.name ?? 'Utilisateur',
+    created_at: raw.created_at ?? '',
   };
 }

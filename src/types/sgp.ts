@@ -117,6 +117,15 @@ export interface NotificationItem {
   tache_id?: number;
 }
 
+export interface Message {
+  id: number;
+  projet_id: number;
+  user_id: number; // compte utilisateur de l'auteur (l'admin n'a pas de fiche personnel)
+  contenu: string;
+  auteur_nom: string;
+  created_at: string;
+}
+
 export interface StatistiquesProjet {
   taux_avancement: number; // % (taches terminées / total * 100)
   total_taches: number;

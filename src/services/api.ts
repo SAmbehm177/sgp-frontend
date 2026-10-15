@@ -13,6 +13,7 @@ import {
   mapStatistiques,
   mapTache,
   mapNotification,
+  mapMessage,
   STATUT_PROJET_VERS_API,
   STATUT_TACHE_VERS_API,
 } from './mappers';
@@ -27,6 +28,7 @@ import {
   TaskStatus,
   TaskPriority,
   MembreProjet,
+  Message,
 } from '../types/sgp';
 
 export interface ApiError {
@@ -347,6 +349,37 @@ class ApiService {
     return ((raw.data ?? []) as any[]).map(mapTache);
   }
   
+  // --- Discussion du projet ---
+  // Sans option : les 30 derniers messages. avantId : les 30 précédents. apresId : les nouveaux (sondage).
+  public async getMessages(
+    projetId: number,
+    opts: { avantId?: number; apresId?: number } = {}
+  ): Promise<{ messages: Message[]; aPlusAncien: boolean }> {
+    const params = new URLSearchParams();
+    if (opts.avantId !== undefined) params.set('avant_id', String(opts.avantId));
+    if (opts.apresId !== undefined) params.set('apres_id', String(opts.apresId));
+    const qs = params.toString();
+
+    const raw = await this.request<any>(`/projets/${projetId}/messages${qs ? `?${qs}` : ''}`);
+    return {
+      messages: ((raw.data ?? []) as any[]).map(mapMessage),
+      aPlusAncien: !!raw.a_plus_ancien,
+    };
+  }
+
+  public async sendMessage(projetId: number, contenu: string): Promise<Message> {
+    const raw = await this.request<any>(`/projets/${projetId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ contenu }),
+    });
+    return mapMessage(raw);
+  }
+
+  // Suppression : l'auteur, un chef de projet ou l'admin
+  public async deleteMessage(id: number): Promise<void> {
+    await this.request(`/messages/${id}`, { method: 'DELETE' });
+  }
+
   // --- Notifications ---
   // Les 20 plus récentes
   public async getNotifications(): Promise<NotificationItem[]> {

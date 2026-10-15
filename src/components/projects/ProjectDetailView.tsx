@@ -16,6 +16,7 @@ import { ConfirmModal } from '../common/ConfirmModal';
 import { ProjectMembersView } from './ProjectMembersView';
 import { ProjectTasksView } from './ProjectTasksView';
 import { ProjectStatsView } from './ProjectStatsView';
+import { ProjectDiscussionView } from './ProjectDiscussionView';
 import { formatJour, initiale } from '../../utils/format';
 import {
   ArrowLeft,
@@ -25,9 +26,10 @@ import {
   FileText,
   AlertCircle,
   BarChart2,
+  MessageSquare,
 } from 'lucide-react';
 
-type Tab = 'vue-ensemble' | 'taches' | 'membres' | 'statistiques';
+type Tab = 'vue-ensemble' | 'taches' | 'membres' | 'discussion' | 'statistiques';
 
 interface ProjectDetailViewProps {
   projetId: number;
@@ -41,6 +43,7 @@ const TABS: { id: Tab; label: string; icon: React.ElementType; ready: boolean; m
   { id: 'vue-ensemble', label: "Vue d'ensemble", icon: FileText, ready: true },
   { id: 'taches', label: 'Tâches', icon: CheckSquare, ready: true },
   { id: 'membres', label: 'Équipe', icon: Users, ready: true },
+  { id: 'discussion', label: 'Discussion', icon: MessageSquare, ready: true },
   { id: 'statistiques', label: 'Statistiques & Avancement', icon: BarChart2, ready: true, managersOnly: true },
 ];
 
@@ -453,6 +456,8 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
           onChanged={load}
         />
       )}
+
+      {ongletActif === 'discussion' && <ProjectDiscussionView projetId={projet.id} canManage={canManage} />}
 
       {ongletActif === 'statistiques' && <ProjectStatsView stats={stats} membres={membres} />}
 
