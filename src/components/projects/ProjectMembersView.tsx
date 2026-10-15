@@ -17,6 +17,7 @@ interface ProjectMembersViewProps {
 }
 
 const estChef = (m: MembreProjet) => m.fonction?.libelle === 'Chef de projet';
+const LIBELLE_CHEF = 'Chef de projet';
 
 export const ProjectMembersView: React.FC<ProjectMembersViewProps> = ({
   projet,
@@ -26,6 +27,9 @@ export const ProjectMembersView: React.FC<ProjectMembersViewProps> = ({
   onChanged,
 }) => {
   const toast = useToast();
+
+  // Un projet n'a qu'un seul chef de projet
+  const aDejaUnChef = membres.some(estChef);
 
   // Ajout d'un membre
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -313,8 +317,9 @@ export const ProjectMembersView: React.FC<ProjectMembersViewProps> = ({
             >
               <option value="">Choisir une fonction...</option>
               {fonctions.map((f) => (
-                <option key={f.id} value={f.id}>
+                <option key={f.id} value={f.id} disabled={f.libelle === LIBELLE_CHEF && aDejaUnChef}>
                   {f.libelle}
+                  {f.libelle === LIBELLE_CHEF && aDejaUnChef ? ' (déjà attribué)' : ''}
                 </option>
               ))}
             </select>

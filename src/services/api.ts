@@ -267,7 +267,7 @@ class ApiService {
     });
   }
 
-  // Retrait d'un membre (le backend refuse s'il reste des tâches en cours ou si c'est le dernier chef)
+  // Retrait d'un membre (le backend refuse s'il reste des tâches en cours ; seul l'administrateur peut retirer le chef)
   public async removeMembre(projetId: number, personnelId: number): Promise<void> {
     await this.request(`/projets/${projetId}/membres/${personnelId}`, { method: 'DELETE' });
   }

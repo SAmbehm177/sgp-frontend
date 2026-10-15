@@ -177,7 +177,7 @@ export const ProjectDiscussionView: React.FC<ProjectDiscussionViewProps> = ({ pr
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 flex flex-col">
-      <div ref={listRef} onScroll={handleScroll} className="h-[28rem] overflow-y-auto p-4 space-y-4">
+      <div ref={listRef} onScroll={handleScroll} className="h-[20rem] overflow-y-auto p-4 space-y-4">
         {aPlusAncien && (
           <div className="text-center">
             <button
