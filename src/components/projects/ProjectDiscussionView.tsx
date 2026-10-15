@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
+import { useNotifications } from '../../context/NotificationsContext';
 import { api } from '../../services/api';
 import { Message } from '../../types/sgp';
 import { ConfirmModal } from '../common/ConfirmModal';
@@ -18,6 +19,7 @@ const LONGUEUR_MAX = 2000; // même limite que le backend
 export const ProjectDiscussionView: React.FC<ProjectDiscussionViewProps> = ({ projetId, canManage }) => {
   const { user } = useAuth();
   const toast = useToast();
+  const { refresh: refreshNotifications } = useNotifications();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [aPlusAncien, setAPlusAncien] = useState(false);
@@ -49,6 +51,8 @@ export const ProjectDiscussionView: React.FC<ProjectDiscussionViewProps> = ({ pr
         if (annule) return;
         setMessages(res.messages);
         setAPlusAncien(res.aPlusAncien);
+        // Ouvrir la discussion marque ses notifications comme lues côté API : on actualise la cloche
+        refreshNotifications();
       })
       .catch((err: any) => {
         if (!annule) setLoadError(err?.message || 'Impossible de charger la discussion.');
@@ -60,7 +64,7 @@ export const ProjectDiscussionView: React.FC<ProjectDiscussionViewProps> = ({ pr
     return () => {
       annule = true;
     };
-  }, [projetId]);
+  }, [projetId, refreshNotifications]);
 
   useEffect(() => {
     dernierId.current = messages.length > 0 ? messages[messages.length - 1].id : 0;
@@ -75,6 +79,7 @@ export const ProjectDiscussionView: React.FC<ProjectDiscussionViewProps> = ({ pr
       try {
         const res = await api.getMessages(projetId, { apresId: dernierId.current });
         if (res.messages.length === 0) return;
+        refreshNotifications();
         setMessages((prev) => {
           const connus = new Set(prev.map((m) => m.id));
           return [...prev, ...res.messages.filter((m) => !connus.has(m.id))];
@@ -85,7 +90,7 @@ export const ProjectDiscussionView: React.FC<ProjectDiscussionViewProps> = ({ pr
     }, INTERVALLE_SONDAGE);
 
     return () => clearInterval(timer);
-  }, [projetId, isLoading, loadError]);
+  }, [projetId, isLoading, loadError, refreshNotifications]);
 
   // Descend en bas du fil, sauf si l'utilisateur est remonté lire d'anciens messages
   useEffect(() => {

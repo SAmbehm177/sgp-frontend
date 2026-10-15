@@ -104,6 +104,7 @@ export type NotificationType =
   | 'tache_statut_modifie'
   | 'membre_ajoute'
   | 'membre_retire'
+  | 'nouveau_message'
   | 'autre';
 
 export interface NotificationItem {

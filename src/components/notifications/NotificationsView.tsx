@@ -4,8 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationsContext';
 import { NotificationItem, Projet, Fonction, Tache } from '../../types/sgp';
 import { TaskStatusBadge, TaskPriorityBadge } from '../common/Badge';
-import { dateHeure, joursDeRetard, formatJour } from '../../utils/format';
-import { AlertCircle, UserCheck, RefreshCw, Bell, Check, FolderPlus, FolderMinus } from 'lucide-react';
+import { dateHeure, joursDeRetard, formatJour, ongletNotification } from '../../utils/format';
+import { AlertCircle, UserCheck, RefreshCw, Bell, Check, FolderPlus, FolderMinus, MessageSquare } from 'lucide-react';
 
 interface NotificationsViewProps {
   onNavigate: (route: string, params?: any) => void;
@@ -19,6 +19,7 @@ const TITRES: Record<NotificationItem['type'], string> = {
   tache_statut_modifie: "Le statut d'une tâche a changé",
   membre_ajoute: 'Vous avez rejoint un projet',
   membre_retire: "Vous avez été retiré d'un projet",
+  nouveau_message: 'Nouveau message dans une discussion',
   autre: 'Notification',
 };
 
@@ -27,6 +28,7 @@ const PUCES: Record<NotificationItem['type'], { icone: React.ElementType; classe
   tache_statut_modifie: { icone: RefreshCw, classe: 'bg-sky-50 text-sky-700' },
   membre_ajoute: { icone: FolderPlus, classe: 'bg-emerald-50 text-emerald-700' },
   membre_retire: { icone: FolderMinus, classe: 'bg-rose-50 text-rose-700' },
+  nouveau_message: { icone: MessageSquare, classe: 'bg-indigo-50 text-indigo-700' },
   autre: { icone: Bell, classe: 'bg-slate-100 text-slate-600' },
 };
 
@@ -127,7 +129,7 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({ onNavigate
     marquerLue(n);
     // Après un retrait, le projet n'est plus accessible
     if (n.projet_id && n.type !== 'membre_retire') {
-      onNavigate('project-detail', { id: n.projet_id, tab: n.type === 'membre_ajoute' ? 'vue-ensemble' : 'taches' });
+      onNavigate('project-detail', { id: n.projet_id, tab: ongletNotification(n.type) });
     }
   };
 
@@ -256,6 +258,7 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({ onNavigate
               <option value="tache_statut_modifie">Statut modifié</option>
               <option value="membre_ajoute">Ajouté à un projet</option>
               <option value="membre_retire">Retiré d'un projet</option>
+              <option value="nouveau_message">Nouveau message</option>
             </select>
 
             <span className="text-[11px] text-slate-400">Les plus récentes en premier</span>
@@ -411,7 +414,11 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({ onNavigate
                           onClick={() => ouvrir(selection)}
                           className="px-3.5 py-2 text-xs font-medium text-white bg-brand-800 hover:bg-brand-900 rounded-lg transition-colors shadow-xs"
                         >
-                          {selection.type === 'membre_ajoute' ? 'Ouvrir le projet' : 'Ouvrir les tâches du projet'}
+                          {selection.type === 'membre_ajoute'
+                            ? 'Ouvrir le projet'
+                            : selection.type === 'nouveau_message'
+                              ? 'Ouvrir la discussion'
+                              : 'Ouvrir les tâches du projet'}
                         </button>
                       )}
                       <button

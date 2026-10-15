@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationsContext';
 import { NotificationItem } from '../../types/sgp';
-import { tempsRelatif, titreNotification } from '../../utils/format';
+import { tempsRelatif, titreNotification, ongletNotification } from '../../utils/format';
 import { Menu, ChevronDown, LogOut, User as UserIcon, Bell } from 'lucide-react';
 
 interface NavbarProps {
@@ -43,7 +43,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     setShowNotifs(false);
     if (!n.lue) markAsRead(n.id);
     if (n.projet_id && n.type !== 'membre_retire') {
-      onNavigate('project-detail', { id: n.projet_id, tab: n.type === 'membre_ajoute' ? 'vue-ensemble' : 'taches' });
+      onNavigate('project-detail', { id: n.projet_id, tab: ongletNotification(n.type) });
     }
   };
 

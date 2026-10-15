@@ -37,6 +37,9 @@ export const titreNotification = (type: string): string => {
 
     case 'membre_retire':
       return "Retrait d'un projet";
+
+    case 'nouveau_message':
+      return 'Nouveau message';
       
     default:
       return 'Notification';
@@ -67,4 +70,11 @@ export const joursDeRetard = (echeance?: string | null): number => {
   const aujourdhui = new Date();
   aujourdhui.setHours(0, 0, 0, 0);
   return Math.max(0, Math.round((aujourdhui.getTime() - fin.getTime()) / 86_400_000));
+};
+
+// Onglet du projet à ouvrir depuis une notification
+export const ongletNotification = (type: string): string => {
+  if (type === 'membre_ajoute') return 'vue-ensemble';
+  if (type === 'nouveau_message') return 'discussion';
+  return 'taches';
 };

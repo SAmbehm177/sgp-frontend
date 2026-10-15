@@ -203,6 +203,7 @@ const TYPES_CONNUS: NotificationItem['type'][] = [
   'tache_statut_modifie',
   'membre_ajoute',
   'membre_retire',
+  'nouveau_message',
 ];
 
 const TYPE_PAR_CLASSE: Record<string, NotificationItem['type']> = {
@@ -210,6 +211,7 @@ const TYPE_PAR_CLASSE: Record<string, NotificationItem['type']> = {
   TacheStatutModifie: 'tache_statut_modifie',
   MembreAjoute: 'membre_ajoute',
   MembreRetire: 'membre_retire',
+  NouveauMessage: 'nouveau_message',
 };
 
 const MESSAGE_PAR_TYPE: Record<NotificationItem['type'], string> = {
@@ -217,6 +219,7 @@ const MESSAGE_PAR_TYPE: Record<NotificationItem['type'], string> = {
   tache_statut_modifie: "Le statut d'une tâche a changé.",
   membre_ajoute: 'Vous avez été ajouté à un projet.',
   membre_retire: "Vous avez été retiré d'un projet.",
+  nouveau_message: 'Nouveau message dans la discussion d’un projet.',
   autre: '',
 };
 
