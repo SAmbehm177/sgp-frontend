@@ -15,64 +15,6 @@ interface DashboardViewProps {
 
 const aujourdhui = () => new Date().toISOString().split('T')[0];
 
-// Carte « répartition » : total, barre segmentée et légende
-const RepartitionTaches: React.FC<{
-  titre: string;
-  terminees: number;
-  enCours: number;
-  annulees: number;
-  enRetard: number;
-}> = ({ titre, terminees, enCours, annulees, enRetard }) => {
-  const total = terminees + enCours + annulees;
-
-  const segments = [
-    { label: 'Terminées', n: terminees, bar: 'bg-emerald-700', text: 'text-emerald-700' },
-    { label: 'En cours', n: enCours, bar: 'bg-brand-700', text: 'text-brand-700' },
-    { label: 'Annulées', n: annulees, bar: 'bg-slate-300', text: 'text-slate-500' },
-  ];
-
-  return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 h-fit">
-      <h2 className="text-sm font-bold text-slate-900">{titre}</h2>
-
-      <div className="mt-4 flex items-end justify-between">
-        <span className="text-4xl font-bold tabular-nums text-slate-900">{total}</span>
-        <span className="text-[11px] text-slate-500 pb-1.5">
-          {total > 1 ? 'tâches au total' : 'tâche au total'}
-        </span>
-      </div>
-
-      <div
-        className="mt-4 flex gap-1 h-2"
-        role="img"
-        aria-label={segments.map((s) => `${s.label} : ${s.n}`).join(', ')}
-      >
-        {total === 0 ? (
-          <div className="flex-1 rounded-full bg-slate-100" />
-        ) : (
-          segments
-            .filter((s) => s.n > 0)
-            .map((s) => <div key={s.label} className={`rounded-full ${s.bar}`} style={{ flex: s.n }} />)
-        )}
-      </div>
-
-      <div className="mt-4 space-y-2">
-        {segments.map((s) => (
-          <div key={s.label} className="flex items-center justify-between text-xs">
-            <span className={`font-medium ${s.text}`}>
-              {s.label}
-              {s.label === 'En cours' && enRetard > 0 && (
-                <span className="ml-2 text-[11px] font-semibold text-rose-600">dont {enRetard} en retard</span>
-              )}
-            </span>
-            <span className="font-semibold tabular-nums text-slate-700">{s.n}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
 export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const { user, personnel, isAdmin } = useAuth();
   const { unreadCount } = useNotifications();
@@ -112,12 +54,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
 
   // Projets
   const actifs = projets.filter((p) => p.statut === 'en_cours');
-  const termines = projets.filter((p) => p.statut === 'termine');
-  const annules = projets.filter((p) => p.statut === 'annule');
   const recents = projets.slice(0, 3); // l'API renvoie les plus récents d'abord
 
   // Compteurs de tâches : les miennes (membre) ou celles de tous les projets (admin)
-  const somme = (champ: 'taches_en_cours' | 'taches_terminees' | 'taches_annulees' | 'taches_en_retard') =>
+  const somme = (champ: 'taches_en_cours' | 'taches_en_retard') =>
     projets.reduce((total, p) => total + (p[champ] ?? 0), 0);
 
   const mesEnCours = taches.filter((t) => t.statut === 'en_cours');
@@ -127,14 +67,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     ? {
         enCours: mesEnCours.length,
         enRetard: mesEnRetard.length,
-        terminees: taches.filter((t) => t.statut === 'termine').length,
-        annulees: taches.filter((t) => t.statut === 'annule').length,
       }
     : {
         enCours: somme('taches_en_cours'),
         enRetard: somme('taches_en_retard'),
-        terminees: somme('taches_terminees'),
-        annulees: somme('taches_annulees'),
       };
 
   const aEcheanceProche = [...mesEnCours]
@@ -411,42 +347,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                   )}
                 </div>
               </div>
-
-              {/* Répartition des tâches */}
-              <RepartitionTaches
-                titre={modeMembre ? 'Répartition de mes tâches' : 'Répartition des tâches'}
-                terminees={compteurs.terminees}
-                enCours={compteurs.enCours}
-                annulees={compteurs.annulees}
-                enRetard={compteurs.enRetard}
-              />
-
-              {/* Répartition des projets (administrateur) */}
-              {isAdmin && (
-                <div className="bg-white rounded-xl border border-slate-200 p-5 h-fit">
-                  <h2 className="text-sm font-bold text-slate-900 mb-4">Répartition des projets</h2>
-                  <div className="space-y-4">
-                    {[
-                      { label: 'En cours', n: actifs.length, bar: 'bg-brand-700' },
-                      { label: 'Terminés', n: termines.length, bar: 'bg-emerald-600' },
-                      { label: 'Annulés', n: annules.length, bar: 'bg-slate-400' },
-                    ].map((ligne) => (
-                      <div key={ligne.label}>
-                        <div className="flex items-center justify-between text-xs mb-1">
-                          <span className="text-slate-600">{ligne.label}</span>
-                          <span className="font-semibold tabular-nums text-slate-900">{ligne.n}</span>
-                        </div>
-                        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${ligne.bar}`}
-                            style={{ width: `${projets.length ? (ligne.n / projets.length) * 100 : 0}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </>
