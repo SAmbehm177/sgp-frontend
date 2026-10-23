@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { LockKeyhole, Mail } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { AuthLayout, AuthField, AuthAlert, AuthButton } from './AuthLayout';
+import { toApiError, ApiError } from '../../services/api';
 
 interface RegisterViewProps {
   onSuccess: () => void;
@@ -31,7 +32,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onSuccess, onGoToLog
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
 
   // Reporte les erreurs de validation Laravel (422) sous les champs concernés
-  const showApiError = (err: any) => {
+  const showApiError = (err: ApiError) => {
     setErrorMessage(err?.message || "Échec de l'inscription.");
     if (err?.errors) {
       const fe: Partial<Record<FormField, string>> = {};
@@ -75,7 +76,8 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onSuccess, onGoToLog
         password_confirmation: form.password_confirmation,
       });
       onSuccess();
-    } catch (err: any) {
+    } catch (caught) {
+      const err = toApiError(caught);
       showApiError(err);
     } finally {
       setIsSubmitting(false);

@@ -1,14 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
-import { api } from '../../services/api';
-import {
-  Projet,
-  ProjectStatus,
-  MembreProjet,
-  Fonction,
-  StatistiquesProjet,
-} from '../../types/sgp';
+import { api, toApiError } from '../../services/api';
+import { Projet, ProjectStatus, MembreProjet, Fonction, StatistiquesProjet, RouteParams } from '../../types/sgp';
 import { ProjectStatusBadge } from '../common/Badge';
 import { ProgressBar } from '../common/ProgressBar';
 import { Modal } from '../common/Modal';
@@ -34,7 +28,7 @@ type Tab = 'vue-ensemble' | 'taches' | 'membres' | 'discussion' | 'statistiques'
 interface ProjectDetailViewProps {
   projetId: number;
   initialTab?: Tab;
-  onNavigate: (route: string, params?: any) => void;
+  onNavigate: (route: string, params?: RouteParams) => void;
   onTitreChange?: (id: number, titre: string) => void;
 }
 
@@ -102,7 +96,8 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
       setFonctions(detail.fonctions);
       setStats(st);
       onTitreChange?.(projetId, detail.projet.titre);
-    } catch (err: any) {
+    } catch (caught) {
+      const err = toApiError(caught);
       setLoadError({ status: err?.status ?? 0, message: err?.message || 'Impossible de charger le projet.' });
     } finally {
       setIsLoading(false);
@@ -228,7 +223,8 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
       toast.success('Projet mis à jour', 'Les modifications ont été enregistrées.');
       setIsEditOpen(false);
       await load();
-    } catch (err: any) {
+    } catch (caught) {
+      const err = toApiError(caught);
       setEditMessage(err?.message || 'Impossible de modifier le projet.');
       if (err?.errors) {
         const fe: Partial<Record<EditField, string>> = {};
@@ -250,7 +246,8 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
       toast.success('Projet supprimé', `Le projet « ${projet.titre} » a été supprimé.`);
       setIsDeleteOpen(false);
       onNavigate('projets');
-    } catch (err: any) {
+    } catch (caught) {
+      const err = toApiError(caught);
       setDeleteError(err?.message || 'Impossible de supprimer le projet.');
     } finally {
       setIsDeleting(false);

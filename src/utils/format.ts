@@ -1,3 +1,4 @@
+import { ProjectTab } from '../types/sgp';
 // 'AAAA-MM-JJ' -> 'JJ/MM/AAAA' (sans passer par Date : pas de décalage de fuseau)
 export const formatJour = (iso?: string | null): string => {
   const [annee, mois, jour] = (iso || '').split('-');
@@ -73,7 +74,7 @@ export const joursDeRetard = (echeance?: string | null): number => {
 };
 
 // Onglet du projet à ouvrir depuis une notification
-export const ongletNotification = (type: string): string => {
+export const ongletNotification = (type: string): ProjectTab => {
   if (type === 'membre_ajoute') return 'vue-ensemble';
   if (type === 'nouveau_message') return 'discussion';
   return 'taches';

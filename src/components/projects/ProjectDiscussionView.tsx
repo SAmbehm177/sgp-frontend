@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { useNotifications } from '../../context/NotificationsContext';
-import { api } from '../../services/api';
+import { api, toApiError } from '../../services/api';
 import { Message } from '../../types/sgp';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { dateHeure, initiale } from '../../utils/format';
@@ -54,7 +54,8 @@ export const ProjectDiscussionView: React.FC<ProjectDiscussionViewProps> = ({ pr
         // Ouvrir la discussion marque ses notifications comme lues côté API : on actualise la cloche
         refreshNotifications();
       })
-      .catch((err: any) => {
+      .catch((caught: unknown) => {
+        const err = toApiError(caught);
         if (!annule) setLoadError(err?.message || 'Impossible de charger la discussion.');
       })
       .finally(() => {
@@ -118,7 +119,8 @@ export const ProjectDiscussionView: React.FC<ProjectDiscussionViewProps> = ({ pr
       requestAnimationFrame(() => {
         if (el) el.scrollTop = el.scrollHeight - hauteurAvant;
       });
-    } catch (err: any) {
+    } catch (caught) {
+      const err = toApiError(caught);
       toast.error('Chargement impossible', err?.message);
     } finally {
       setIsLoadingOlder(false);
@@ -136,7 +138,8 @@ export const ProjectDiscussionView: React.FC<ProjectDiscussionViewProps> = ({ pr
       collerAuBas.current = true;
       setMessages((prev) => (prev.some((m) => m.id === nouveau.id) ? prev : [...prev, nouveau]));
       setContenu('');
-    } catch (err: any) {
+    } catch (caught) {
+      const err = toApiError(caught);
       toast.error('Message non envoyé', err?.errors?.contenu?.[0] || err?.message);
     } finally {
       setIsSending(false);
@@ -155,7 +158,8 @@ export const ProjectDiscussionView: React.FC<ProjectDiscussionViewProps> = ({ pr
       await api.deleteMessage(toDelete.id);
       setMessages((prev) => prev.filter((m) => m.id !== toDelete.id));
       setToDelete(null);
-    } catch (err: any) {
+    } catch (caught) {
+      const err = toApiError(caught);
       toast.error('Suppression impossible', err?.message);
     } finally {
       setIsDeleting(false);

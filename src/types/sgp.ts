@@ -152,3 +152,12 @@ export interface ApiConfig {
   useMock: boolean;
   token: string | null;
 }
+
+// Paramètres transmis lors d'une navigation interne (hash routing)
+export type ProjectTab = 'vue-ensemble' | 'taches' | 'membres' | 'discussion' | 'statistiques';
+
+export interface RouteParams {
+  id?: number;
+  tab?: ProjectTab;
+  filter?: string;
+}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
-import { api } from '../../services/api';
+import { api, toApiError } from '../../services/api';
 import { User } from '../../types/sgp';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { EmptyState } from '../common/EmptyState';
@@ -29,7 +29,8 @@ export const AdminView: React.FC = () => {
     setLoadError(null);
     try {
       setUsers(await api.getUsers());
-    } catch (err: any) {
+    } catch (caught) {
+      const err = toApiError(caught);
       setLoadError(err?.message || 'Impossible de charger les comptes.');
     } finally {
       setIsLoading(false);
@@ -85,7 +86,8 @@ export const AdminView: React.FC = () => {
       );
       setCible(null);
       await loadUsers();
-    } catch (err: any) {
+    } catch (caught) {
+      const err = toApiError(caught);
       setActionError(err?.message || 'Impossible de modifier le statut de ce compte.');
     } finally {
       setIsSaving(false);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '../../context/ToastContext';
-import { api } from '../../services/api';
+import { api, toApiError } from '../../services/api';
 import { Projet, MembreProjet, Fonction, Personnel } from '../../types/sgp';
 import { EmptyState } from '../common/EmptyState';
 import { Modal } from '../common/Modal';
@@ -61,7 +61,8 @@ export const ProjectMembersView: React.FC<ProjectMembersViewProps> = ({
             setResults(list);
             setSearchError(null);
           }
-        } catch (err: any) {
+        } catch (caught) {
+          const err = toApiError(caught);
           if (!annule) setSearchError(err?.message || 'Recherche impossible.');
         } finally {
           if (!annule) setIsSearching(false);
@@ -111,7 +112,8 @@ export const ProjectMembersView: React.FC<ProjectMembersViewProps> = ({
       toast.success('Membre ajouté', `${selected.prenom} ${selected.nom} rejoint le projet.`);
       closeAdd();
       onChanged();
-    } catch (err: any) {
+    } catch (caught) {
+      const err = toApiError(caught);
       setAddError(err?.message || "Impossible d'ajouter ce membre.");
     } finally {
       setIsSaving(false);
@@ -131,7 +133,8 @@ export const ProjectMembersView: React.FC<ProjectMembersViewProps> = ({
       );
       setToRemove(null);
       onChanged();
-    } catch (err: any) {
+    } catch (caught) {
+      const err = toApiError(caught);
       setRemoveError(err?.message || 'Impossible de retirer ce membre.');
     } finally {
       setIsRemoving(false);

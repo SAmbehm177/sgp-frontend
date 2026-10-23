@@ -18,13 +18,16 @@ import { ProfileView } from './components/profile/ProfileView';
 import { NotificationsView } from './components/notifications/NotificationsView';
 import { LoginView } from './components/auth/LoginView';
 import { RegisterView } from './components/auth/RegisterView';
+import { ProjectTab, RouteParams } from './types/sgp';
+
+const ONGLETS_PROJET: ProjectTab[] = ['vue-ensemble', 'taches', 'membres', 'discussion', 'statistiques'];
 
 function AppContent() {
   const { user, isAuthenticated, isLoading } = useAuth();
 
   // Navigation state
   const [currentRoute, setCurrentRoute] = useState<string>('dashboard');
-  const [routeParams, setRouteParams] = useState<any>({});
+  const [routeParams, setRouteParams] = useState<RouteParams>({});
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [projetTitre, setProjetTitre] = useState<{ id: number; titre: string } | null>(null);
 
@@ -49,7 +52,7 @@ function AppContent() {
           setCurrentRoute('projects-new');
         } else if (parts[1]) {
           setCurrentRoute('project-detail');
-          setRouteParams({ id: Number(parts[1]), tab: parts[2] || 'vue-ensemble' });
+          setRouteParams({ id: Number(parts[1]), tab: ONGLETS_PROJET.find((o) => o === parts[2]) ?? 'vue-ensemble' });
         } else {
           setCurrentRoute('projets');
         }
@@ -83,7 +86,7 @@ function AppContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, isLoading, currentRoute]);
 
-  const navigate = (route: string, params: any = {}) => {
+  const navigate = (route: string, params: RouteParams = {}) => {
     setCurrentRoute(route);
     setRouteParams(params);
 
@@ -188,8 +191,8 @@ function AppContent() {
 
           {currentRoute === 'project-detail' && (
             <ProjectDetailView
-              projetId={routeParams.id}
-              initialTab={routeParams.tab || 'vue-ensemble'}
+              projetId={routeParams.id ?? 0}
+              initialTab={routeParams.tab ?? 'vue-ensemble'}
               onNavigate={navigate}
               onTitreChange={(id, titre) => setProjetTitre({ id, titre })}
             />

@@ -37,6 +37,14 @@ export interface ApiError {
   errors?: Record<string, string[]>;
 }
 
+// Normalise n'importe quelle erreur capturée (ApiError levée par request(), Error JS, valeur inconnue)
+export function toApiError(err: unknown): ApiError {
+  if (typeof err === 'object' && err !== null && 'status' in err && 'message' in err) {
+    return err as ApiError;
+  }
+  return { status: 0, message: err instanceof Error ? err.message : 'Une erreur est survenue.' };
+}
+
 export interface RegisterPayload {
   prenom: string;
   nom: string;
@@ -73,7 +81,7 @@ class ApiService {
       });
 
       if (!res.ok) {
-        let errData: any = {};
+        let errData: { message?: string; errors?: Record<string, string[]> } = {};
         try {
           errData = await res.json();
         } catch {
@@ -98,8 +106,8 @@ class ApiService {
       if (res.status === 204) return {} as T;
       const text = await res.text();
       return (text ? JSON.parse(text) : {}) as T;
-    } catch (err: any) {
-      if (err.status) {
+    } catch (err: unknown) {
+      if (typeof err === 'object' && err !== null && 'status' in err && (err as ApiError).status) {
         throw err;
       }
       // Erreur réseau : le détail technique reste dans la console, pas à l'écran

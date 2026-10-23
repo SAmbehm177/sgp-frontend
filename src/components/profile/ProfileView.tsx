@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { api } from '../../services/api';
-import { Projet, Fonction } from '../../types/sgp';
+import { api, toApiError } from '../../services/api';
+import { Projet, Fonction, RouteParams } from '../../types/sgp';
 import { ProjectStatusBadge } from '../common/Badge';
 import { EmptyState } from '../common/EmptyState';
 import { formatJour, initiale } from '../../utils/format';
 import { AlertCircle } from 'lucide-react';
 
 interface ProfileViewProps {
-  onNavigate: (route: string, params?: any) => void;
+  onNavigate: (route: string, params?: RouteParams) => void;
 }
 
 export const ProfileView: React.FC<ProfileViewProps> = ({ onNavigate }) => {
@@ -25,7 +25,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onNavigate }) => {
       const [liste, fonctionsListe] = await Promise.all([api.getProjets(), api.getFonctions()]);
       setProjets(liste);
       setFonctions(fonctionsListe);
-    } catch (err: any) {
+    } catch (caught) {
+      const err = toApiError(caught);
       setLoadError(err?.message || 'Impossible de charger vos projets.');
     } finally {
       setIsLoading(false);

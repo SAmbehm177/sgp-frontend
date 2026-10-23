@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationsContext';
 import { api } from '../../services/api';
-import { Projet, Tache } from '../../types/sgp';
+import { Projet, Tache, RouteParams } from '../../types/sgp';
 import { ProgressBar } from '../common/ProgressBar';
 import { TaskStatusBadge, TaskPriorityBadge, ProjectStatusBadge } from '../common/Badge';
 import { EmptyState } from '../common/EmptyState';
@@ -10,7 +10,7 @@ import { formatJour } from '../../utils/format';
 import { FolderKanban, AlertCircle } from 'lucide-react';
 
 interface DashboardViewProps {
-  onNavigate: (route: string, params?: any) => void;
+  onNavigate: (route: string, params?: RouteParams) => void;
 }
 
 const aujourdhui = () => new Date().toISOString().split('T')[0];

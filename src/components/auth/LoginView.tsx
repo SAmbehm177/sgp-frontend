@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { AuthLayout, AuthField, AuthAlert, AuthButton } from './AuthLayout';
+import { toApiError, ApiError } from '../../services/api';
 
 interface LoginViewProps {
   onSuccess: () => void;
@@ -17,7 +18,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccess, onGoToRegister 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Affiche l'erreur renvoyée par l'API (422 de validation, 401 identifiants, 403 compte désactivé...)
-  const showApiError = (err: any) => {
+  const showApiError = (err: ApiError) => {
     setErrorMessage(err?.message || 'Échec de la connexion.');
     if (err?.errors) {
       const fe: Record<string, string> = {};
@@ -46,7 +47,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccess, onGoToRegister 
     try {
       await login(email.trim(), password);
       onSuccess();
-    } catch (err: any) {
+    } catch (caught) {
+      const err = toApiError(caught);
       showApiError(err);
     } finally {
       setIsSubmitting(false);

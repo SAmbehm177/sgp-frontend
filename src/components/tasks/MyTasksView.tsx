@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
-import { api } from '../../services/api';
-import { Tache, TaskStatus } from '../../types/sgp';
+import { api, toApiError } from '../../services/api';
+import { Tache, TaskStatus, RouteParams } from '../../types/sgp';
 import { TaskStatusBadge, TaskPriorityBadge } from '../common/Badge';
 import { EmptyState } from '../common/EmptyState';
 import { formatJour } from '../../utils/format';
@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 
 interface MyTasksViewProps {
-  onNavigate: (route: string, params?: any) => void;
+  onNavigate: (route: string, params?: RouteParams) => void;
   initialFilter?: string;
 }
 
@@ -44,7 +44,8 @@ export const MyTasksView: React.FC<MyTasksViewProps> = ({ onNavigate, initialFil
     try {
       setTaches(await api.getMyTasks());
       setSansFiche(false);
-    } catch (err: any) {
+    } catch (caught) {
+      const err = toApiError(caught);
       // 404 : le compte n'a pas de fiche personnel (cas d'un administrateur)
       if (err?.status === 404) {
         setSansFiche(true);
@@ -85,7 +86,8 @@ export const MyTasksView: React.FC<MyTasksViewProps> = ({ onNavigate, initialFil
       const libelle = statut === 'en_cours' ? 'En cours' : statut === 'termine' ? 'Terminée' : 'Annulée';
       toast.success('Statut mis à jour', `La tâche « ${t.titre} » est maintenant « ${libelle} ».`);
       await loadTaches();
-    } catch (err: any) {
+    } catch (caught) {
+      const err = toApiError(caught);
       toast.error('Action refusée', err?.message || 'Impossible de changer le statut.');
     } finally {
       setBusyId(null);

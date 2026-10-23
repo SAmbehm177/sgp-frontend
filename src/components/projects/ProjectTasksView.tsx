@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
-import { api } from '../../services/api';
+import { api, toApiError } from '../../services/api';
 import { Projet, Tache, TaskStatus, TaskPriority, MembreProjet } from '../../types/sgp';
 import { TaskStatusBadge, TaskPriorityBadge } from '../common/Badge';
 import { Modal } from '../common/Modal';
@@ -97,7 +97,8 @@ export const ProjectTasksView: React.FC<ProjectTasksViewProps> = ({
     setLoadError(null);
     try {
       setTaches(await api.getTaches(projet.id));
-    } catch (err: any) {
+    } catch (caught) {
+      const err = toApiError(caught);
       setLoadError(err?.message || 'Impossible de charger les tâches.');
     } finally {
       setIsLoading(false);
@@ -239,7 +240,8 @@ export const ProjectTasksView: React.FC<ProjectTasksViewProps> = ({
 
       closeModal();
       await reload();
-    } catch (err: any) {
+    } catch (caught) {
+      const err = toApiError(caught);
       setFormMessage(err?.message || "Impossible d'enregistrer la tâche.");
       if (err?.errors) {
         const fe: Partial<Record<FormField, string>> = {};
@@ -260,7 +262,8 @@ export const ProjectTasksView: React.FC<ProjectTasksViewProps> = ({
       const libelle = statut === 'en_cours' ? 'En cours' : statut === 'termine' ? 'Terminée' : 'Annulée';
       toast.success('Statut mis à jour', `La tâche « ${t.titre} » est maintenant « ${libelle} ».`);
       await reload();
-    } catch (err: any) {
+    } catch (caught) {
+      const err = toApiError(caught);
       toast.error('Action refusée', err?.message || 'Impossible de changer le statut.');
     } finally {
       setBusyId(null);
@@ -276,7 +279,8 @@ export const ProjectTasksView: React.FC<ProjectTasksViewProps> = ({
       toast.success('Tâche supprimée', `La tâche « ${toDelete.titre} » a été supprimée.`);
       setToDelete(null);
       await reload();
-    } catch (err: any) {
+    } catch (caught) {
+      const err = toApiError(caught);
       setDeleteError(err?.message || 'Impossible de supprimer la tâche.');
     } finally {
       setIsDeleting(false);

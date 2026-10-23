@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { User, Personnel } from '../types/sgp';
-import { api, RegisterPayload } from '../services/api';
+import { api, RegisterPayload, toApiError } from '../services/api';
 import { session } from '../services/session';
 import { useToast } from './ToastContext';
 
@@ -36,7 +36,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const me = await api.getMe();
       setUser(me.user);
       setPersonnel(me.personnel);
-    } catch (err: any) {
+    } catch (caught) {
+      const err = toApiError(caught);
       // Jeton invalide, compte désactivé ou API injoignable : on repart sur la page de connexion
       setUser(null);
       setPersonnel(null);
@@ -81,7 +82,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     try {
       await api.logout();
-    } catch (err: any) {
+    } catch (caught) {
+      const err = toApiError(caught);
       console.error('Logout error', err);
     } finally {
       // Même si l'API échoue, la session locale est fermée

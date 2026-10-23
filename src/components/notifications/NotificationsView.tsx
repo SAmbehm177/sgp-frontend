@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { api } from '../../services/api';
+import { api, toApiError } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationsContext';
-import { NotificationItem, Projet, Fonction, Tache } from '../../types/sgp';
+import { NotificationItem, Projet, Fonction, Tache, RouteParams } from '../../types/sgp';
 import { TaskStatusBadge, TaskPriorityBadge } from '../common/Badge';
 import { dateHeure, joursDeRetard, formatJour, ongletNotification } from '../../utils/format';
 import { AlertCircle, UserCheck, RefreshCw, Bell, Check, FolderPlus, FolderMinus, MessageSquare } from 'lucide-react';
 
 interface NotificationsViewProps {
-  onNavigate: (route: string, params?: any) => void;
+  onNavigate: (route: string, params?: RouteParams) => void;
 }
 
 type Onglet = 'toutes' | 'non_lues';
@@ -64,7 +64,8 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({ onNavigate
       setItems(liste);
       setProjets(projetsListe);
       setFonctions(fonctionsListe);
-    } catch (err: any) {
+    } catch (caught) {
+      const err = toApiError(caught);
       setLoadError(err?.message || 'Impossible de charger les notifications.');
     } finally {
       setIsLoading(false);

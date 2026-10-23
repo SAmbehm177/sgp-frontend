@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
-import { api } from '../../services/api';
-import { Projet } from '../../types/sgp';
+import { api, toApiError } from '../../services/api';
+import { Projet, RouteParams } from '../../types/sgp';
 import { ProgressBar } from '../common/ProgressBar';
 import { ProjectStatusBadge } from '../common/Badge';
 import { EmptyState } from '../common/EmptyState';
@@ -11,7 +11,7 @@ import { formatJour } from '../../utils/format';
 import { Folder, Plus, Search, Calendar, Users, AlertCircle } from 'lucide-react';
 
 interface ProjectsListViewProps {
-  onNavigate: (route: string, params?: any) => void;
+  onNavigate: (route: string, params?: RouteParams) => void;
   openCreateImmediately?: boolean;
 }
 
@@ -58,7 +58,8 @@ export const ProjectsListView: React.FC<ProjectsListViewProps> = ({
     setLoadError(null);
     try {
       setProjets(await api.getProjets());
-    } catch (err: any) {
+    } catch (caught) {
+      const err = toApiError(caught);
       setLoadError(err?.message || 'Impossible de charger les projets.');
     } finally {
       setIsLoading(false);
@@ -109,7 +110,8 @@ export const ProjectsListView: React.FC<ProjectsListViewProps> = ({
       toast.success('Projet créé', `Le projet « ${created.titre} » a été créé.`);
       closeCreateModal();
       await loadProjets();
-    } catch (err: any) {
+    } catch (caught) {
+      const err = toApiError(caught);
       setFormMessage(err?.message || 'Impossible de créer le projet.');
       if (err?.errors) {
         const fe: Partial<Record<FormField, string>> = {};
