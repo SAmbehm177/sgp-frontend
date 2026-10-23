@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { User, Personnel } from '../types/sgp';
-import { api, RegisterPayload, toApiError } from '../services/api';
+import { api, toApiError } from '../services/api';
 import { session } from '../services/session';
 import { useToast } from './ToastContext';
 
@@ -10,7 +10,6 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (data: RegisterPayload) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   isAdmin: boolean;
@@ -72,13 +71,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     toast.success('Connexion réussie', `Bienvenue, ${res.user.name} !`);
   };
 
-  const register = async (data: RegisterPayload): Promise<void> => {
-    const res = await api.register(data);
-    setUser(res.user);
-    setPersonnel(res.personnel);
-    toast.success('Compte créé', `Bienvenue, ${res.user.name} !`);
-  };
-
   const logout = async () => {
     try {
       await api.logout();
@@ -107,7 +99,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAuthenticated: !!user,
         isLoading,
         login,
-        register,
         logout,
         refreshUser,
         isAdmin,

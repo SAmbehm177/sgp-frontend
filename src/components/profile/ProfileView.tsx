@@ -44,6 +44,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onNavigate }) => {
 
   const informations = [
     { label: 'Adresse e-mail', value: user.email },
+    ...(personnel?.matricule ? [{ label: 'Matricule', value: personnel.matricule }] : []),
     { label: 'Poste', value: poste },
     { label: 'Rôle sur la plateforme', value: isAdmin ? 'Administrateur' : 'Membre' },
     { label: 'Membre depuis le', value: formatJour(user.created_at.slice(0, 10)) },

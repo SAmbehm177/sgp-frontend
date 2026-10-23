@@ -4,6 +4,7 @@ import { useToast } from '../../context/ToastContext';
 import { api, toApiError } from '../../services/api';
 import { User } from '../../types/sgp';
 import { ConfirmModal } from '../common/ConfirmModal';
+import { PersonnelAdmin } from './PersonnelAdmin';
 import { EmptyState } from '../common/EmptyState';
 import { formatJour, initiale } from '../../utils/format';
 import { Shield, Search, AlertCircle } from 'lucide-react';
@@ -65,7 +66,8 @@ export const AdminView: React.FC = () => {
     const matchesSearch =
       u.name.toLowerCase().includes(terme) ||
       u.email.toLowerCase().includes(terme) ||
-      (u.poste ?? '').toLowerCase().includes(terme);
+      (u.poste ?? '').toLowerCase().includes(terme) ||
+      (u.matricule ?? '').toLowerCase().includes(terme);
     const matchesFiltre =
       filtre === 'tous' || (filtre === 'actifs' && u.is_active) || (filtre === 'desactives' && !u.is_active);
     return matchesSearch && matchesFiltre;
@@ -101,9 +103,11 @@ export const AdminView: React.FC = () => {
       <div className="pb-4 border-b border-slate-200">
         <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Administration</h1>
         <p className="text-xs text-slate-500 mt-1">
-          Les comptes sont créés librement à l'inscription : activez ou désactivez-les ici.
+          Créez le personnel, donnez-lui un accès, puis activez ou désactivez les comptes ici.
         </p>
       </div>
+
+      <PersonnelAdmin onAccessGranted={loadUsers} />
 
       {loadError && (
         <div
@@ -153,7 +157,7 @@ export const AdminView: React.FC = () => {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Rechercher par nom, e-mail ou poste..."
+                placeholder="Rechercher par nom, e-mail, matricule ou poste..."
                 className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-hidden focus:ring-2 focus:border-brand-800 focus:ring-brand-800/20"
               />
             </div>
@@ -167,7 +171,7 @@ export const AdminView: React.FC = () => {
                     <th className="py-3 px-4">Utilisateur</th>
                     <th className="py-3 px-4">Poste</th>
                     <th className="py-3 px-4">Rôle</th>
-                    <th className="py-3 px-4">Inscrit le</th>
+                    <th className="py-3 px-4">Compte créé le</th>
                     <th className="py-3 px-4">Statut</th>
                     <th className="py-3 px-4 text-right">Action</th>
                   </tr>

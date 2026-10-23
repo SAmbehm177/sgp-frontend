@@ -454,7 +454,7 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
         />
       )}
 
-      {ongletActif === 'discussion' && <ProjectDiscussionView projetId={projet.id} canManage={canManage} />}
+      {ongletActif === 'discussion' && <ProjectDiscussionView projetId={projet.id} canManage={canManage} membres={membres} />}
 
       {ongletActif === 'statistiques' && <ProjectStatsView stats={stats} membres={membres} />}
 

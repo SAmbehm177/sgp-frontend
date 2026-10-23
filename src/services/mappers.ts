@@ -24,8 +24,9 @@ export function mapPersonnel(raw: any, userId?: number): Personnel | null {
     id: raw.id,
     nom: raw.nom,
     prenom: raw.prenom,
+    matricule: raw.matricule ?? '',
     poste: raw.poste ?? '',
-    user_id: raw.user_id ?? userId ?? 0,
+    user_id: raw.user_id ?? userId ?? null,
     created_at: raw.created_at ?? '',
     updated_at: raw.updated_at ?? undefined,
   };
@@ -44,6 +45,7 @@ export function mapUser(raw: any): User {
     is_active: isActive,
     personnel_id: raw.personnel?.id ?? raw.personnel_id ?? null,
     poste: raw.personnel?.poste ?? undefined,
+    matricule: raw.personnel?.matricule ?? undefined,
     created_at: raw.created_at ?? '',
     updated_at: raw.updated_at ?? undefined,
   };
@@ -249,10 +251,13 @@ export function mapNotification(raw: any): NotificationItem {
 // L'auteur s'affiche avec le nom de sa fiche personnel, à défaut avec le nom du compte (admin)
 export function mapMessage(raw: any): Message {
   const p = raw.auteur?.personnel;
+  const d = raw.destinataire?.personnel;
   return {
     id: raw.id,
     projet_id: raw.projet_id,
     user_id: raw.user_id,
+    destinataire_id: raw.destinataire_id ?? null,
+    destinataire_nom: d ? `${d.prenom} ${d.nom}` : raw.destinataire?.name ?? null,
     contenu: raw.contenu,
     auteur_nom: p ? `${p.prenom} ${p.nom}` : raw.auteur?.name ?? 'Utilisateur',
     created_at: raw.created_at ?? '',

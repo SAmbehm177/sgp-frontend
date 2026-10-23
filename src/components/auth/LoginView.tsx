@@ -5,10 +5,9 @@ import { toApiError, ApiError } from '../../services/api';
 
 interface LoginViewProps {
   onSuccess: () => void;
-  onGoToRegister: () => void;
 }
 
-export const LoginView: React.FC<LoginViewProps> = ({ onSuccess, onGoToRegister }) => {
+export const LoginView: React.FC<LoginViewProps> = ({ onSuccess }) => {
   const { login } = useAuth();
 
   const [email, setEmail] = useState('');
@@ -60,18 +59,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccess, onGoToRegister 
       eyebrow="Ravi de vous revoir"
       title="Connexion"
       subtitle="Accédez à votre espace de travail."
-      footer={
-        <p>
-          Pas encore de compte ?{' '}
-          <button
-            type="button"
-            onClick={onGoToRegister}
-            className="font-semibold text-brand-700 underline underline-offset-2 hover:text-brand-800"
-          >
-            Créer un compte
-          </button>
-        </p>
-      }
+      footer={<p>Pas de compte ? Contactez l'administrateur : c'est lui qui crée les accès.</p>}
     >
 
       {errorMessage && <AuthAlert title="Connexion impossible" message={errorMessage} />}

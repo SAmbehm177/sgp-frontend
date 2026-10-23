@@ -229,7 +229,7 @@ export const ProjectMembersView: React.FC<ProjectMembersViewProps> = ({
         isOpen={isAddOpen}
         onClose={closeAdd}
         title="Ajouter un membre"
-        description="Recherchez une personne inscrite, puis choisissez sa fonction dans ce projet."
+        description="Recherchez un membre du personnel, puis choisissez sa fonction dans ce projet."
         maxWidth="lg"
       >
         <form onSubmit={handleAdd} className="space-y-4" noValidate>

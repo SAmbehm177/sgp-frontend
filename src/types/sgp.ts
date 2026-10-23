@@ -15,14 +15,16 @@ export interface User {
   created_at: string;
   updated_at?: string;
   poste?: string;
+  matricule?: string;
 }
 
 export interface Personnel {
   id: number;
   nom: string;
   prenom: string;
+  matricule: string;
   poste: string;
-  user_id: number;
+  user_id: number | null; // null : personnel sans compte (l'accès est accordé par l'administrateur)
   created_at: string;
   updated_at?: string;
   user?: User;
@@ -122,6 +124,8 @@ export interface Message {
   id: number;
   projet_id: number;
   user_id: number; // compte utilisateur de l'auteur (l'admin n'a pas de fiche personnel)
+  destinataire_id: number | null; // facultatif : sans destinataire, le message s'adresse à tout le projet
+  destinataire_nom: string | null;
   contenu: string;
   auteur_nom: string;
   created_at: string;

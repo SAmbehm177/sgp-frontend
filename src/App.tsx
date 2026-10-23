@@ -17,7 +17,6 @@ import { AdminView } from './components/admin/AdminView';
 import { ProfileView } from './components/profile/ProfileView';
 import { NotificationsView } from './components/notifications/NotificationsView';
 import { LoginView } from './components/auth/LoginView';
-import { RegisterView } from './components/auth/RegisterView';
 import { ProjectTab, RouteParams } from './types/sgp';
 
 const ONGLETS_PROJET: ProjectTab[] = ['vue-ensemble', 'taches', 'membres', 'discussion', 'statistiques'];
@@ -45,8 +44,6 @@ function AppContent() {
 
       if (base === 'connexion') {
         setCurrentRoute('connexion');
-      } else if (base === 'inscription') {
-        setCurrentRoute('inscription');
       } else if (base === 'projets') {
         if (parts[1] === 'nouveau') {
           setCurrentRoute('projects-new');
@@ -78,9 +75,9 @@ function AppContent() {
   useEffect(() => {
     if (isLoading) return;
     if (!isAuthenticated) {
-      const pagesPubliques = ['#/connexion', '#/inscription'];
+      const pagesPubliques = ['#/connexion'];
       if (!pagesPubliques.includes(window.location.hash)) window.location.hash = '#/connexion';
-    } else if (currentRoute === 'connexion' || currentRoute === 'inscription') {
+    } else if (currentRoute === 'connexion') {
       navigate('dashboard');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -101,7 +98,6 @@ function AppContent() {
     else if (route === 'administration') window.location.hash = '#/administration';
     else if (route === 'profile') window.location.hash = '#/profil';
     else if (route === 'connexion') window.location.hash = '#/connexion';
-    else if (route === 'inscription') window.location.hash = '#/inscription';
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -146,17 +142,7 @@ function AppContent() {
 
   // Not authenticated -> show Login
   if (!isAuthenticated) {
-    return currentRoute === 'inscription' ? (
-      <RegisterView
-        onSuccess={() => navigate('dashboard')}
-        onGoToLogin={() => navigate('connexion')}
-      />
-    ) : (
-      <LoginView
-        onSuccess={() => navigate('dashboard')}
-        onGoToRegister={() => navigate('inscription')}
-      />
-    );
+    return <LoginView onSuccess={() => navigate('dashboard')} />;
   }
 
   return (

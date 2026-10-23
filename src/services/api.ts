@@ -45,15 +45,6 @@ export function toApiError(err: unknown): ApiError {
   return { status: 0, message: err instanceof Error ? err.message : 'Une erreur est survenue.' };
 }
 
-export interface RegisterPayload {
-  prenom: string;
-  nom: string;
-  poste: string;
-  email: string;
-  password: string;
-  password_confirmation: string;
-}
-
 class ApiService {
   private getHeaders(): HeadersInit {
     const token = session.getToken();
@@ -150,22 +141,6 @@ class ApiService {
     const { user, personnel, token } = mapAuthPayload(raw);
     if (!token) {
       throw { status: 500, message: 'Réponse de connexion invalide : jeton absent.' } as ApiError;
-    }
-    session.setToken(token);
-    return { user, personnel, token };
-  }
-
-  // Inscription libre : POST /api/register -> { token, user: { ..., personnel } } (connecte directement)
-  public async register(
-    data: RegisterPayload
-  ): Promise<{ user: User; personnel: Personnel | null; token: string }> {
-    const raw = await this.request<any>('/register', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-    const { user, personnel, token } = mapAuthPayload(raw);
-    if (!token) {
-      throw { status: 500, message: "Réponse d'inscription invalide : jeton absent." } as ApiError;
     }
     session.setToken(token);
     return { user, personnel, token };
@@ -375,10 +350,10 @@ class ApiService {
     };
   }
 
-  public async sendMessage(projetId: number, contenu: string): Promise<Message> {
+  public async sendMessage(projetId: number, contenu: string, destinataireId?: number | null): Promise<Message> {
     const raw = await this.request<any>(`/projets/${projetId}/messages`, {
       method: 'POST',
-      body: JSON.stringify({ contenu }),
+      body: JSON.stringify({ contenu, destinataire_id: destinataireId ?? null }),
     });
     return mapMessage(raw);
   }
@@ -426,6 +401,32 @@ class ApiService {
     return ((raw.data ?? raw) as any[])
       .map((p) => mapPersonnel(p))
       .filter((p): p is Personnel => p !== null);
+  }
+
+  // --- Administration du personnel (administrateur) ---
+  // Fiches sans compte : GET /personnels?sans_acces=1
+  public async getPersonnelSansAcces(): Promise<Personnel[]> {
+    const items = await this.requestAll<any>('/personnels?sans_acces=1');
+    return items.map((p) => mapPersonnel(p)).filter((p): p is Personnel => p !== null);
+  }
+
+  // Création d'une fiche, sans compte : POST /personnels
+  public async createPersonnel(data: {
+    prenom: string;
+    nom: string;
+    matricule: string;
+    poste: string;
+  }): Promise<Personnel> {
+    const raw = await this.request<any>('/personnels', { method: 'POST', body: JSON.stringify(data) });
+    return mapPersonnel(raw) as Personnel;
+  }
+
+  // Création du compte d'un personnel : POST /personnels/{id}/acces
+  public async grantAccess(
+    personnelId: number,
+    data: { email: string; password: string; role: 'user' | 'admin' }
+  ): Promise<void> {
+    await this.request(`/personnels/${personnelId}/acces`, { method: 'POST', body: JSON.stringify(data) });
   }
 
   // --- Administration des comptes ---

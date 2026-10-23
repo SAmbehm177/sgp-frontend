@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { useNotifications } from '../../context/NotificationsContext';
 import { api, toApiError } from '../../services/api';
-import { Message } from '../../types/sgp';
+import { MembreProjet, Message } from '../../types/sgp';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { dateHeure, initiale } from '../../utils/format';
 import { Send, Trash2, AlertCircle, MessageSquare } from 'lucide-react';
@@ -11,12 +11,13 @@ import { Send, Trash2, AlertCircle, MessageSquare } from 'lucide-react';
 interface ProjectDiscussionViewProps {
   projetId: number;
   canManage: boolean; // admin ou chef de projet : peut supprimer n'importe quel message
+  membres: MembreProjet[]; // équipe active : sert à choisir un destinataire facultatif
 }
 
 const INTERVALLE_SONDAGE = 8000; // vérifie les nouveaux messages toutes les 8 s
 const LONGUEUR_MAX = 2000; // même limite que le backend
 
-export const ProjectDiscussionView: React.FC<ProjectDiscussionViewProps> = ({ projetId, canManage }) => {
+export const ProjectDiscussionView: React.FC<ProjectDiscussionViewProps> = ({ projetId, canManage, membres }) => {
   const { user } = useAuth();
   const toast = useToast();
   const { refresh: refreshNotifications } = useNotifications();
@@ -28,10 +29,16 @@ export const ProjectDiscussionView: React.FC<ProjectDiscussionViewProps> = ({ pr
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
 
   const [contenu, setContenu] = useState('');
+  const [destinataireId, setDestinataireId] = useState<number | null>(null); // null = tout le projet
   const [isSending, setIsSending] = useState(false);
 
   const [toDelete, setToDelete] = useState<Message | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Destinataires possibles : les autres membres actifs du projet
+  const destinataires = membres
+    .filter((m) => m.personnel && m.personnel.user_id && m.personnel.user_id !== user?.id)
+    .map((m) => ({ userId: m.personnel!.user_id as number, nom: `${m.personnel!.prenom} ${m.personnel!.nom}` }));
 
   const listRef = useRef<HTMLDivElement>(null);
   const collerAuBas = useRef(true); // faut-il redescendre automatiquement à l'arrivée d'un message ?
@@ -134,13 +141,17 @@ export const ProjectDiscussionView: React.FC<ProjectDiscussionViewProps> = ({ pr
 
     setIsSending(true);
     try {
-      const nouveau = await api.sendMessage(projetId, texte);
+      const nouveau = await api.sendMessage(projetId, texte, destinataireId);
       collerAuBas.current = true;
       setMessages((prev) => (prev.some((m) => m.id === nouveau.id) ? prev : [...prev, nouveau]));
       setContenu('');
+      setDestinataireId(null);
     } catch (caught) {
       const err = toApiError(caught);
-      toast.error('Message non envoyé', err?.errors?.contenu?.[0] || err?.message);
+      toast.error(
+        'Message non envoyé',
+        err?.errors?.contenu?.[0] || err?.errors?.destinataire_id?.[0] || err?.message
+      );
     } finally {
       setIsSending(false);
     }
@@ -217,6 +228,11 @@ export const ProjectDiscussionView: React.FC<ProjectDiscussionViewProps> = ({ pr
               <div className={`min-w-0 max-w-[80%] ${moi ? 'items-end' : 'items-start'} flex flex-col`}>
                 <div className="flex items-center gap-2 text-[11px] text-slate-500 mb-1">
                   <span className="font-semibold text-slate-800">{moi ? 'Vous' : m.auteur_nom}</span>
+                  {m.destinataire_nom && (
+                    <span className="text-brand-800">
+                      à {m.destinataire_id === user?.id ? 'vous' : m.destinataire_nom}
+                    </span>
+                  )}
                   <span>{dateHeure(m.created_at)}</span>
                   {peutSupprimer && (
                     <button
@@ -242,6 +258,21 @@ export const ProjectDiscussionView: React.FC<ProjectDiscussionViewProps> = ({ pr
       </div>
 
       <form onSubmit={envoyer} className="flex items-end gap-2 p-3 border-t border-slate-100">
+        {destinataires.length > 0 && (
+          <select
+            value={destinataireId ?? ''}
+            onChange={(e) => setDestinataireId(e.target.value ? Number(e.target.value) : null)}
+            aria-label="Destinataire du message"
+            className="max-w-[9rem] px-2 py-2 text-xs border border-slate-300 rounded-lg bg-white focus:outline-hidden focus:border-brand-800"
+          >
+            <option value="">À tout le projet</option>
+            {destinataires.map((d) => (
+              <option key={d.userId} value={d.userId}>
+                À {d.nom}
+              </option>
+            ))}
+          </select>
+        )}
         <textarea
           rows={2}
           value={contenu}
