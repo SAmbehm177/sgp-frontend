@@ -6,10 +6,9 @@ interface AuthLayoutProps {
   title: string;
   subtitle: string;
   children: React.ReactNode;
-  footer?: React.ReactNode;
 }
 
-export const AuthLayout: React.FC<AuthLayoutProps> = ({ eyebrow, title, subtitle, children, footer }) => (
+export const AuthLayout: React.FC<AuthLayoutProps> = ({ eyebrow, title, subtitle, children}) => (
   <main className="flex min-h-screen items-center justify-center bg-cream px-4 py-10 sm:px-6">
     <div className="w-full max-w-md">
 
@@ -37,11 +36,6 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ eyebrow, title, subtitle
 
         <div className="mt-8">{children}</div>
 
-        {footer && (
-          <div className="mt-6 border-t border-card-border pt-5 text-center text-sm text-slate-500">
-            {footer}
-          </div>
-        )}
       </section>
     </div>
   </main>

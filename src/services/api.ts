@@ -79,9 +79,15 @@ class ApiService {
           errData = { message: res.statusText };
         }
 
+        // Erreur interne (5xx) : le détail technique reste dans la console, l'utilisateur voit un message clair
+        if (res.status >= 500) console.error(`[SGP] Erreur serveur ${res.status}`, errData);
+
         const apiErr: ApiError = {
           status: res.status,
-          message: errData.message || `Erreur serveur (${res.status})`,
+          message:
+            res.status >= 500
+              ? 'Une erreur est survenue sur le serveur. Réessayez dans un instant.'
+              : errData.message || `Erreur serveur (${res.status})`,
           errors: errData.errors,
         };
 
@@ -152,6 +158,18 @@ class ApiService {
     } finally {
       session.setToken(null);
     }
+  }
+
+  // Changement de mot de passe de l'utilisateur connecté : PUT /password
+  public async changePassword(current: string, password: string, confirmation: string): Promise<void> {
+    await this.request('/password', {
+      method: 'PUT',
+      body: JSON.stringify({
+        current_password: current,
+        password,
+        password_confirmation: confirmation,
+      }),
+    });
   }
 
   // Restaure la session au chargement de la page

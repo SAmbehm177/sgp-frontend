@@ -11,6 +11,7 @@ export interface User {
   email: string;
   role: UserRole;
   is_active: boolean;
+  must_change_password?: boolean; // vrai tant que le mot de passe provisoire n'a pas été remplacé
   personnel_id?: number | null;
   created_at: string;
   updated_at?: string;

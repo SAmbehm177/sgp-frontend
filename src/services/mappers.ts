@@ -43,6 +43,7 @@ export function mapUser(raw: any): User {
     email: raw.email,
     role: raw.role,
     is_active: isActive,
+    must_change_password: !!raw.must_change_password,
     personnel_id: raw.personnel?.id ?? raw.personnel_id ?? null,
     poste: raw.personnel?.poste ?? undefined,
     matricule: raw.personnel?.matricule ?? undefined,

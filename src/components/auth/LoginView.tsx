@@ -59,7 +59,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccess }) => {
       eyebrow="Ravi de vous revoir"
       title="Connexion"
       subtitle="Accédez à votre espace de travail."
-      footer={<p>Pas de compte ? Contactez l'administrateur : c'est lui qui crée les accès.</p>}
     >
 
       {errorMessage && <AuthAlert title="Connexion impossible" message={errorMessage} />}

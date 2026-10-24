@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import { api, toApiError } from '../../services/api';
 import { Projet, Fonction, RouteParams } from '../../types/sgp';
 import { ProjectStatusBadge } from '../common/Badge';
 import { EmptyState } from '../common/EmptyState';
+import { PasswordInput } from '../common/PasswordInput';
 import { formatJour, initiale } from '../../utils/format';
 import { AlertCircle } from 'lucide-react';
 
@@ -13,6 +15,12 @@ interface ProfileViewProps {
 
 export const ProfileView: React.FC<ProfileViewProps> = ({ onNavigate }) => {
   const { user, personnel, isAdmin, logout } = useAuth();
+  const toast = useToast();
+
+  // Changement de mot de passe
+  const [mdp, setMdp] = useState({ actuel: '', nouveau: '', confirmation: '' });
+  const [mdpError, setMdpError] = useState<string | null>(null);
+  const [mdpSaving, setMdpSaving] = useState(false);
 
   const [projets, setProjets] = useState<Projet[]>([]);
   const [fonctions, setFonctions] = useState<Fonction[]>([]);
@@ -37,6 +45,33 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onNavigate }) => {
     // Un administrateur a accès à tous les projets : pas de liste d'affectations à afficher
     if (!isAdmin) load();
   }, [isAdmin]);
+
+  const changerMotDePasse = async (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    setMdpError(null);
+
+    if (mdp.nouveau.length < 8) {
+      setMdpError('Le nouveau mot de passe doit contenir au moins 8 caractères.');
+      return;
+    }
+    if (mdp.nouveau !== mdp.confirmation) {
+      setMdpError('La confirmation ne correspond pas au nouveau mot de passe.');
+      return;
+    }
+
+    setMdpSaving(true);
+    try {
+      await api.changePassword(mdp.actuel, mdp.nouveau, mdp.confirmation);
+      toast.success('Mot de passe modifié', 'Vos autres appareils ont été déconnectés.');
+      setMdp({ actuel: '', nouveau: '', confirmation: '' });
+    } catch (caught) {
+      const err = toApiError(caught);
+      const premiere = Object.values(err.errors ?? {})[0]?.[0];
+      setMdpError(premiere || err.message || 'Mot de passe non modifié.');
+    } finally {
+      setMdpSaving(false);
+    }
+  };
 
   if (!user) return null;
 
@@ -162,6 +197,55 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onNavigate }) => {
           </div>
         )}
       </div>
+
+      {/* Sécurité */}
+      <form onSubmit={changerMotDePasse} className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+        <div>
+          <h2 className="text-sm font-bold text-slate-900">Changer mon mot de passe</h2>
+          <p className="text-[11px] text-slate-500 mt-0.5">
+            Si l'administrateur vous a donné un mot de passe provisoire, remplacez-le ici.
+          </p>
+        </div>
+
+        {mdpError && (
+          <div role="alert" className="flex items-start gap-2 p-3 text-xs text-rose-800 bg-rose-50 border border-rose-200 rounded-xl">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+            <span>{mdpError}</span>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {[
+            { id: 'mdp-actuel', label: 'Mot de passe actuel', key: 'actuel', auto: 'current-password' },
+            { id: 'mdp-nouveau', label: 'Nouveau mot de passe', key: 'nouveau', auto: 'new-password' },
+            { id: 'mdp-confirmation', label: 'Confirmer le nouveau', key: 'confirmation', auto: 'new-password' },
+          ].map((champ) => (
+            <div key={champ.id}>
+              <label htmlFor={champ.id} className="block text-xs font-medium text-slate-700 mb-1">
+                {champ.label}
+              </label>
+              <PasswordInput
+                id={champ.id}
+                autoComplete={champ.auto}
+                required
+                value={mdp[champ.key as keyof typeof mdp]}
+                onChange={(e) => setMdp({ ...mdp, [champ.key]: e.target.value })}
+                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white focus:outline-hidden focus:border-brand-800 focus:ring-2 focus:ring-brand-800/20"
+              />
+            </div>
+          ))}
+        </div>
+
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            disabled={mdpSaving}
+            className="px-4 py-2 text-xs font-medium text-white bg-brand-800 hover:bg-brand-900 rounded-lg disabled:opacity-60"
+          >
+            {mdpSaving ? 'Enregistrement…' : 'Changer le mot de passe'}
+          </button>
+        </div>
+      </form>
 
       <div>
         <button

@@ -17,6 +17,7 @@ import { AdminView } from './components/admin/AdminView';
 import { ProfileView } from './components/profile/ProfileView';
 import { NotificationsView } from './components/notifications/NotificationsView';
 import { LoginView } from './components/auth/LoginView';
+import { ForcePasswordChangeView } from './components/auth/ForcePasswordChangeView';
 import { ProjectTab, RouteParams } from './types/sgp';
 
 const ONGLETS_PROJET: ProjectTab[] = ['vue-ensemble', 'taches', 'membres', 'discussion', 'statistiques'];
@@ -143,6 +144,11 @@ function AppContent() {
   // Not authenticated -> show Login
   if (!isAuthenticated) {
     return <LoginView onSuccess={() => navigate('dashboard')} />;
+  }
+
+  // Mot de passe provisoire : l'application reste fermée tant qu'il n'est pas remplacé
+  if (user?.must_change_password) {
+    return <ForcePasswordChangeView />;
   }
 
   return (
