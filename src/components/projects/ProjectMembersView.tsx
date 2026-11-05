@@ -44,6 +44,7 @@ export const ProjectMembersView: React.FC<ProjectMembersViewProps> = ({
 
   // Retrait d'un membre
   const [toRemove, setToRemove] = useState<MembreProjet | null>(null);
+  const [nouveauChefId, setNouveauChefId] = useState<number | ''>('');
   const [removeError, setRemoveError] = useState<string | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
 
@@ -126,12 +127,26 @@ export const ProjectMembersView: React.FC<ProjectMembersViewProps> = ({
     setRemoveError(null);
     setIsRemoving(true);
     try {
-      await api.removeMembre(projet.id, toRemove.personnel_id);
-      toast.success(
-        'Membre retiré',
-        `${toRemove.personnel?.prenom} ${toRemove.personnel?.nom} ne fait plus partie du projet.`
-      );
+      if (estChef(toRemove)) {
+        const nouveauChef = membres.find((m) => m.personnel_id === nouveauChefId && m.personnel_id !== toRemove.personnel_id);
+        if (!nouveauChef) {
+          setRemoveError('Choisissez un membre actif pour le désigner comme nouveau chef de projet.');
+          return;
+        }
+        await api.transfererChefProjet(projet.id, toRemove.personnel_id, nouveauChef.personnel_id);
+        toast.success(
+          'Chef de projet remplacé',
+          `${nouveauChef.personnel?.prenom} ${nouveauChef.personnel?.nom} prend la responsabilité du projet.`
+        );
+      } else {
+        await api.removeMembre(projet.id, toRemove.personnel_id);
+        toast.success(
+          'Membre retiré',
+          `${toRemove.personnel?.prenom} ${toRemove.personnel?.nom} ne fait plus partie du projet.`
+        );
+      }
       setToRemove(null);
+      setNouveauChefId('');
       onChanged();
     } catch (caught) {
       const err = toApiError(caught);
@@ -141,11 +156,20 @@ export const ProjectMembersView: React.FC<ProjectMembersViewProps> = ({
     }
   };
 
+  const closeRemove = () => {
+    setToRemove(null);
+    setNouveauChefId('');
+    setRemoveError(null);
+  };
+
   const tries = [...membres].sort(
     (a, b) =>
       Number(estChef(b)) - Number(estChef(a)) ||
       (a.personnel?.nom ?? '').localeCompare(b.personnel?.nom ?? '')
   );
+  const membresCandidatsChef = membres.filter((m) => m.personnel_id !== toRemove?.personnel_id);
+  const nouveauChefSelectionne = membresCandidatsChef.find((m) => m.personnel_id === nouveauChefId);
+  const retraitChef = toRemove ? estChef(toRemove) : false;
 
   return (
     <div className="space-y-4">
@@ -210,6 +234,7 @@ export const ProjectMembersView: React.FC<ProjectMembersViewProps> = ({
                 <button
                   onClick={() => {
                     setRemoveError(null);
+                    setNouveauChefId('');
                     setToRemove(m);
                   }}
                   className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
@@ -348,26 +373,107 @@ export const ProjectMembersView: React.FC<ProjectMembersViewProps> = ({
       </Modal>
 
       {/* Retirer un membre */}
-      <ConfirmModal
-        isOpen={!!toRemove}
-        onClose={() => setToRemove(null)}
-        onConfirm={handleRemove}
-        title="Retirer ce membre ?"
-        message={`${toRemove?.personnel?.prenom ?? ''} ${toRemove?.personnel?.nom ?? ''} ne fera plus partie de ce projet.`}
-        confirmLabel="Retirer"
-        isLoading={isRemoving}
-        details={
-          removeError ? (
-            <div
-              role="alert"
-              className="flex items-start gap-2 p-3 text-xs text-rose-800 bg-rose-50 border border-rose-200 rounded-xl"
-            >
-              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-              <span>{removeError}</span>
+      {retraitChef ? (
+        <Modal
+          isOpen={!!toRemove}
+          onClose={closeRemove}
+          title="Remplacer le chef de projet"
+          description="Choisissez le membre qui prendra la responsabilité du projet avant de retirer le chef actuel."
+          maxWidth="md"
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-slate-700">
+              {toRemove?.personnel?.prenom} {toRemove?.personnel?.nom} sera retiré du projet.
+            </p>
+
+            {membresCandidatsChef.length > 0 ? (
+              <div>
+                <label htmlFor="nouveau-chef" className="block text-xs font-semibold text-slate-700 mb-1">
+                  Nouveau chef de projet <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  id="nouveau-chef"
+                  value={nouveauChefId}
+                  onChange={(e) => {
+                    setNouveauChefId(e.target.value ? Number(e.target.value) : '');
+                    setRemoveError(null);
+                  }}
+                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white focus:outline-hidden focus:ring-2 focus:border-brand-800 focus:ring-brand-800/20"
+                  autoFocus
+                >
+                  <option value="">Sélectionnez un membre actif...</option>
+                  {membresCandidatsChef.map((m) => (
+                    <option key={m.personnel_id} value={m.personnel_id}>
+                      {m.personnel?.prenom} {m.personnel?.nom}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-slate-500">
+                  Le transfert du rôle et le retrait du chef actuel seront effectués ensemble.
+                </p>
+              </div>
+            ) : (
+              <div
+                role="alert"
+                className="flex items-start gap-2 p-3 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl"
+              >
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <span>Ajoutez d’abord un autre membre au projet pour pouvoir lui transférer le rôle de chef.</span>
+              </div>
+            )}
+
+            {removeError && (
+              <div
+                role="alert"
+                className="flex items-start gap-2 p-3 text-xs text-rose-800 bg-rose-50 border border-rose-200 rounded-xl"
+              >
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <span>{removeError}</span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={closeRemove}
+                disabled={isRemoving}
+                className="px-4 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={handleRemove}
+                disabled={isRemoving || !nouveauChefSelectionne}
+                className="px-4 py-2 text-xs font-medium text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isRemoving ? 'Transfert en cours…' : 'Transférer et retirer'}
+              </button>
             </div>
-          ) : undefined
-        }
-      />
+          </div>
+        </Modal>
+      ) : (
+        <ConfirmModal
+          isOpen={!!toRemove}
+          onClose={closeRemove}
+          onConfirm={handleRemove}
+          title="Retirer ce membre ?"
+          message={`${toRemove?.personnel?.prenom ?? ''} ${toRemove?.personnel?.nom ?? ''} ne fera plus partie de ce projet.`}
+          confirmLabel="Retirer"
+          isLoading={isRemoving}
+          details={
+            removeError ? (
+              <div
+                role="alert"
+                className="flex items-start gap-2 p-3 text-xs text-rose-800 bg-rose-50 border border-rose-200 rounded-xl"
+              >
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <span>{removeError}</span>
+              </div>
+            ) : undefined
+          }
+        />
+      )}
     </div>
   );
 };

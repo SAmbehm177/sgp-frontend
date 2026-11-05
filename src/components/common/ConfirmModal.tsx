@@ -12,6 +12,7 @@ interface ConfirmModalProps {
   cancelLabel?: string;
   isDestructive?: boolean;
   isLoading?: boolean;
+  isConfirmDisabled?: boolean;
   details?: React.ReactNode;
 }
 
@@ -25,6 +26,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   cancelLabel = 'Annuler',
   isDestructive = true,
   isLoading = false,
+  isConfirmDisabled = false,
   details,
 }) => {
   return (
@@ -56,7 +58,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
           <button
             type="button"
             onClick={onConfirm}
-            disabled={isLoading}
+            disabled={isLoading || isConfirmDisabled}
             className={`px-4 py-2 text-xs font-medium text-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2 ${
               isDestructive
                 ? 'bg-rose-600 hover:bg-rose-700 shadow-xs'

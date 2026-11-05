@@ -273,6 +273,18 @@ class ApiService {
     await this.request(`/projets/${projetId}/membres/${personnelId}`, { method: 'DELETE' });
   }
 
+  // Transfert atomique du rôle de chef avant le retrait de l'ancien chef
+  public async transfererChefProjet(
+    projetId: number,
+    ancienChefId: number,
+    nouveauChefId: number
+  ): Promise<void> {
+    await this.request(`/projets/${projetId}/transfert-chef`, {
+      method: 'POST',
+      body: JSON.stringify({ ancien_chef_id: ancienChefId, nouveau_chef_id: nouveauChefId }),
+    });
+  }
+
   // --- Tâches ---
   public async getTaches(projetId: number): Promise<Tache[]> {
     const items = await this.requestAll<any>(`/projets/${projetId}/taches`);

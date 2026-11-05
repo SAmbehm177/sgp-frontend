@@ -202,9 +202,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onNavigate }) => {
       <form onSubmit={changerMotDePasse} className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
         <div>
           <h2 className="text-sm font-bold text-slate-900">Changer mon mot de passe</h2>
-          <p className="text-[11px] text-slate-500 mt-0.5">
-            Si l'administrateur vous a donné un mot de passe provisoire, remplacez-le ici.
-          </p>
         </div>
 
         {mdpError && (
@@ -247,14 +244,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onNavigate }) => {
         </div>
       </form>
 
-      <div>
-        <button
-          onClick={() => logout()}
-          className="px-4 py-2 text-xs font-medium text-rose-700 bg-white border border-rose-200 hover:bg-rose-50 rounded-lg transition-colors"
-        >
-          Se déconnecter
-        </button>
-      </div>
     </div>
   );
 };
