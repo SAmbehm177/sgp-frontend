@@ -250,7 +250,7 @@ class ApiService {
     if (data.statut !== undefined) body.statut = STATUT_PROJET_VERS_API[data.statut];
 
     const raw = await this.request<any>(`/projets/${id}`, {
-      method: 'PUT',
+      method: 'PATCH',
       body: JSON.stringify(body),
     });
     return mapProjet(raw);
