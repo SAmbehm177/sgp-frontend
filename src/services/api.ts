@@ -197,8 +197,12 @@ class ApiService {
     }));
   }
 
-  // Suppression d'un projet (administrateur) : ses tâches et son équipe sont supprimées avec lui
+  // Supprime d'abord toutes les tâches, puis le projet (administrateur).
   public async deleteProjet(id: number): Promise<void> {
+    const taches = await this.getTaches(id);
+    for (const tache of taches) {
+      await this.deleteTache(tache.id);
+    }
     await this.request(`/projets/${id}`, { method: 'DELETE' });
   }
 
