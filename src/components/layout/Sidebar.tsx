@@ -1,7 +1,8 @@
 import React from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { LayersIcon,LayoutDashboard, Folder, ListCheck, Shield, User, X,Bell } from 'lucide-react';
+import { LayersIcon,LayoutDashboard, Folder, ListCheck, Shield, User, X,Bell,WaypointsIcon } from 'lucide-react';
 import { useNotifications } from '../../context/NotificationsContext';
+import { FaStaylinked } from "react-icons/fa";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -52,10 +53,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="flex items-center justify-between h-16 px-6 border-b border-card-border shrink-0">
           <div className="flex items-center gap-3">
             <p>
-              <LayersIcon className="w-8 h-8 text-brand-700" /> 
+              <FaStaylinked  className="w-8 h-8 text-brand-700" /> 
             </p>
             <div>
-              <span className="font-bold text-sm tracking-tight text-slate-800 block">CPNTIC_sgp</span>
+              <span className="font-bold text-sm tracking-tight text-slate-800 block">CPNTIC</span>
               <span className="text-[10px] text-slate-500 block">Gestion de projets</span>
             </div>
           </div>

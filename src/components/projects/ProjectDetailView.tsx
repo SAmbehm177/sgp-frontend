@@ -450,6 +450,7 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
           membres={membres}
           fonctions={fonctions}
           canManage={canManage}
+          isAdmin={isAdmin}
           onChanged={load}
         />
       )}

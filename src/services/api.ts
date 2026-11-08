@@ -197,12 +197,8 @@ class ApiService {
     }));
   }
 
-  // Supprime d'abord toutes les tâches, puis le projet (administrateur).
+  // La suppression du projet supprime aussi ses tâches via la clé étrangère (administrateur).
   public async deleteProjet(id: number): Promise<void> {
-    const taches = await this.getTaches(id);
-    for (const tache of taches) {
-      await this.deleteTache(tache.id);
-    }
     await this.request(`/projets/${id}`, { method: 'DELETE' });
   }
 
@@ -269,6 +265,13 @@ class ApiService {
     await this.request(`/projets/${data.projet_id}/membres`, {
       method: 'POST',
       body: JSON.stringify({ personnel_id: data.personnel_id, fonction_id: data.fonction_id }),
+    });
+  }
+
+  public async updateMembreFonction(projetId: number, personnelId: number, fonctionId: number): Promise<void> {
+    await this.request(`/projets/${projetId}/membres/${personnelId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ fonction_id: fonctionId }),
     });
   }
 

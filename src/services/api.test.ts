@@ -77,3 +77,54 @@ describe('partial updates', () => {
     );
   });
 });
+
+describe('project deletion', () => {
+  const fetchMock = vi.fn();
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal('fetch', fetchMock);
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('deletes the project with a single request', async () => {
+    await api.deleteProjet(1);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:8000/api/projets/1',
+      expect.objectContaining({ method: 'DELETE' })
+    );
+  });
+});
+
+describe('project member role updates', () => {
+  const fetchMock = vi.fn();
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal('fetch', fetchMock);
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('updates a member role without removing the member', async () => {
+    await api.updateMembreFonction(1, 2, 3);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:8000/api/projets/1/membres/2',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ fonction_id: 3 }),
+      })
+    );
+  });
+});

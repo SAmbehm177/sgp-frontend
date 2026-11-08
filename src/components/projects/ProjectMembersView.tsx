@@ -6,13 +6,14 @@ import { EmptyState } from '../common/EmptyState';
 import { Modal } from '../common/Modal';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { initiale } from '../../utils/format';
-import { Users, UserPlus, UserMinus, Search, AlertCircle, Check } from 'lucide-react';
+import { Users, UserPlus, UserMinus, Search, AlertCircle, Check, Pencil } from 'lucide-react';
 
 interface ProjectMembersViewProps {
   projet: Projet;
   membres: MembreProjet[];
   fonctions: Fonction[];
   canManage: boolean;
+  isAdmin: boolean;
   onChanged: () => void;
 }
 
@@ -24,6 +25,7 @@ export const ProjectMembersView: React.FC<ProjectMembersViewProps> = ({
   membres,
   fonctions,
   canManage,
+  isAdmin,
   onChanged,
 }) => {
   const toast = useToast();
@@ -47,6 +49,12 @@ export const ProjectMembersView: React.FC<ProjectMembersViewProps> = ({
   const [nouveauChefId, setNouveauChefId] = useState<number | ''>('');
   const [removeError, setRemoveError] = useState<string | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
+
+  // Modification de la fonction d'un membre (administrateur)
+  const [membreAFonctionModifier, setMembreAFonctionModifier] = useState<MembreProjet | null>(null);
+  const [fonctionAFonctionModifier, setFonctionAFonctionModifier] = useState<number | ''>('');
+  const [fonctionError, setFonctionError] = useState<string | null>(null);
+  const [isUpdatingFonction, setIsUpdatingFonction] = useState(false);
 
   // Recherche dans l'annuaire (avec un léger délai pendant la frappe)
   useEffect(() => {
@@ -156,6 +164,33 @@ export const ProjectMembersView: React.FC<ProjectMembersViewProps> = ({
     }
   };
 
+  const handleUpdateFonction = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!membreAFonctionModifier || fonctionAFonctionModifier === '') return;
+
+    setFonctionError(null);
+    setIsUpdatingFonction(true);
+    try {
+      await api.updateMembreFonction(
+        projet.id,
+        membreAFonctionModifier.personnel_id,
+        Number(fonctionAFonctionModifier)
+      );
+      const fonction = fonctions.find((f) => f.id === fonctionAFonctionModifier);
+      toast.success(
+        'Fonction modifiée',
+        `La fonction de ${membreAFonctionModifier.personnel?.prenom} ${membreAFonctionModifier.personnel?.nom} est maintenant « ${fonction?.libelle} ».`
+      );
+      setMembreAFonctionModifier(null);
+      onChanged();
+    } catch (caught) {
+      const err = toApiError(caught);
+      setFonctionError(err?.message || 'Impossible de modifier la fonction de ce membre.');
+    } finally {
+      setIsUpdatingFonction(false);
+    }
+  };
+
   const closeRemove = () => {
     setToRemove(null);
     setNouveauChefId('');
@@ -170,6 +205,9 @@ export const ProjectMembersView: React.FC<ProjectMembersViewProps> = ({
   const membresCandidatsChef = membres.filter((m) => m.personnel_id !== toRemove?.personnel_id);
   const nouveauChefSelectionne = membresCandidatsChef.find((m) => m.personnel_id === nouveauChefId);
   const retraitChef = toRemove ? estChef(toRemove) : false;
+  const autreChefActif = membres.some(
+    (m) => estChef(m) && m.personnel_id !== membreAFonctionModifier?.personnel_id
+  );
 
   return (
     <div className="space-y-4">
@@ -244,10 +282,85 @@ export const ProjectMembersView: React.FC<ProjectMembersViewProps> = ({
                   <UserMinus className="w-4 h-4" />
                 </button>
               )}
+              {isAdmin && (
+                <button
+                  onClick={() => {
+                    setMembreAFonctionModifier(m);
+                    setFonctionAFonctionModifier(m.fonction_id);
+                    setFonctionError(null);
+                  }}
+                  className="p-1.5 text-slate-400 hover:text-brand-800 hover:bg-brand-50 rounded-lg transition-colors"
+                  title="Modifier la fonction"
+                  aria-label={`Modifier la fonction de ${m.personnel?.prenom} ${m.personnel?.nom}`}
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+              )}
             </div>
           ))}
         </div>
       )}
+
+      <Modal
+        isOpen={!!membreAFonctionModifier}
+        onClose={() => setMembreAFonctionModifier(null)}
+        title="Modifier la fonction"
+        description={`Modifiez la fonction de ${membreAFonctionModifier?.personnel?.prenom ?? ''} ${membreAFonctionModifier?.personnel?.nom ?? ''} sans le retirer du projet.`}
+        maxWidth="md"
+      >
+        <form onSubmit={handleUpdateFonction} className="space-y-4" noValidate>
+          {fonctionError && (
+            <div
+              role="alert"
+              className="flex items-start gap-2 p-3 text-xs text-rose-800 bg-rose-50 border border-rose-200 rounded-xl"
+            >
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+              <span>{fonctionError}</span>
+            </div>
+          )}
+
+          <div>
+            <label htmlFor="modifier-fonction" className="block text-xs font-semibold text-slate-700 mb-1">
+              Fonction dans le projet <span className="text-rose-500">*</span>
+            </label>
+            <select
+              id="modifier-fonction"
+              value={fonctionAFonctionModifier}
+              onChange={(e) => setFonctionAFonctionModifier(e.target.value ? Number(e.target.value) : '')}
+              className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white focus:outline-hidden focus:ring-2 focus:border-brand-800 focus:ring-brand-800/20"
+            >
+              {fonctions.map((f) => (
+                <option
+                  key={f.id}
+                  value={f.id}
+                  disabled={f.libelle === LIBELLE_CHEF && autreChefActif}
+                >
+                  {f.libelle}
+                  {f.libelle === LIBELLE_CHEF && autreChefActif ? ' (déjà attribué)' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setMembreAFonctionModifier(null)}
+              disabled={isUpdatingFonction}
+              className="px-4 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              disabled={isUpdatingFonction || fonctionAFonctionModifier === ''}
+              className="px-4 py-2 text-xs font-medium text-white bg-brand-800 hover:bg-brand-900 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isUpdatingFonction ? 'Enregistrement…' : 'Enregistrer'}
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Ajouter un membre */}
       <Modal
