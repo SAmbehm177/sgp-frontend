@@ -8,6 +8,7 @@ import { ProjectStatusBadge } from '../common/Badge';
 import { EmptyState } from '../common/EmptyState';
 import { Modal } from '../common/Modal';
 import { formatJour } from '../../utils/format';
+import { getLocalDateString, isBeforeLocalToday } from '../../utils/date';
 import { Folder, Plus, Search, Calendar, Users, AlertCircle } from 'lucide-react';
 
 interface ProjectsListViewProps {
@@ -15,10 +16,7 @@ interface ProjectsListViewProps {
   openCreateImmediately?: boolean;
 }
 
-const aujourdhui = () => new Date().toISOString().split('T')[0];
-
-
-const EMPTY_FORM = { titre: '', description: '', date_debut: aujourdhui(), date_fin: '' };
+const EMPTY_FORM = { titre: '', description: '', date_debut: getLocalDateString(), date_fin: '' };
 type FormField = keyof typeof EMPTY_FORM;
 
 const inputClass = (hasError: boolean) =>
@@ -72,7 +70,7 @@ export const ProjectsListView: React.FC<ProjectsListViewProps> = ({
 
   const closeCreateModal = () => {
     setIsCreateModalOpen(false);
-    setForm({ ...EMPTY_FORM, date_debut: aujourdhui() });
+    setForm({ ...EMPTY_FORM, date_debut: getLocalDateString() });
     setFormErrors({});
     setFormMessage(null);
   };
@@ -87,6 +85,9 @@ export const ProjectsListView: React.FC<ProjectsListViewProps> = ({
     const errors: Partial<Record<FormField, string>> = {};
     if (!form.titre.trim()) errors.titre = 'Le titre du projet est obligatoire.';
     if (!form.date_debut) errors.date_debut = 'La date de dÃ©but est obligatoire.';
+    else if (isBeforeLocalToday(form.date_debut)) {
+      errors.date_debut = "La date de début ne peut pas être antérieure à aujourd'hui.";
+    }
     if (!form.date_fin) errors.date_fin = 'La date de fin est obligatoire.';
     if (form.date_debut && form.date_fin && form.date_fin < form.date_debut) {
       errors.date_fin = 'La date de fin ne peut pas prÃ©cÃ©der la date de dÃ©but.';
@@ -364,6 +365,7 @@ export const ProjectsListView: React.FC<ProjectsListViewProps> = ({
               <input
                 id="projet-debut"
                 type="date"
+                min={getLocalDateString()}
                 value={form.date_debut}
                 onChange={update('date_debut')}
                 className={inputClass(!!formErrors.date_debut)}

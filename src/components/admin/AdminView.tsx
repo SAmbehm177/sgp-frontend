@@ -169,6 +169,7 @@ export const AdminView: React.FC = () => {
                 <thead>
                   <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-medium">
                     <th className="py-3 px-4">Utilisateur</th>
+                    <th className="py-3 px-4">Matricule</th>
                     <th className="py-3 px-4">Poste</th>
                     <th className="py-3 px-4">Rôle</th>
                     <th className="py-3 px-4">Compte créé le</th>
@@ -179,7 +180,7 @@ export const AdminView: React.FC = () => {
                 <tbody className="divide-y divide-slate-100 text-slate-700">
                   {filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-10 text-center text-slate-400">
+                      <td colSpan={7} className="py-10 text-center text-slate-400">
                         Aucun compte ne correspond à votre recherche.
                       </td>
                     </tr>
@@ -202,6 +203,10 @@ export const AdminView: React.FC = () => {
                                 <div className="text-[11px] text-slate-500 truncate">{u.email}</div>
                               </div>
                             </div>
+                          </td>
+
+                          <td className="py-3 px-4 font-mono tabular-nums text-slate-600 whitespace-nowrap">
+                            {u.matricule || '—'}
                           </td>
 
                           <td className="py-3 px-4 text-slate-600">{u.poste || '—'}</td>
