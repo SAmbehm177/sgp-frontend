@@ -103,7 +103,7 @@ export const AdminView: React.FC = () => {
       <div className="pb-4 border-b border-slate-200">
         <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Administration</h1>
         <p className="text-xs text-slate-500 mt-1">
-          Créez le personnel, donnez-lui un accès, puis activez ou désactivez les comptes ici.
+          Créez le personnel et son accès en une étape, puis gérez les comptes ici.
         </p>
       </div>
 
