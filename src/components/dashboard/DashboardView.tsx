@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationsContext';
 import { api, toApiError } from '../../services/api';
-import { Fonction, Projet, Tache, RouteParams } from '../../types/sgp';
+import { Projet, Tache, RouteParams } from '../../types/sgp';
 import { ProgressBar } from '../common/ProgressBar';
 import { TaskStatusBadge, TaskPriorityBadge, ProjectStatusBadge } from '../common/Badge';
 import { EmptyState } from '../common/EmptyState';
@@ -10,10 +10,6 @@ import { formatJour } from '../../utils/format';
 import { AnalyseAvancement } from './avancement/AnalyseAvancement';
 import { FolderKanban, AlertCircle } from 'lucide-react';
 import { getLocalDateString } from '../../utils/date';
-import { AdminDashboard } from './AdminDashboard';
-import { ChefDashboard } from './ChefDashboard';
-import { MembreDashboard } from './MembreDashboard';
-import { determinerMode, projetsDiriges } from './dashboardMode';
 
 interface DashboardViewProps {
   onNavigate: (route: string, params?: RouteParams) => void;
@@ -32,38 +28,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [tasksError, setTasksError] = useState<string | null>(null);
-  const [fonctions, setFonctions] = useState<Fonction[]>([]);
-  const [tachesProjets, setTachesProjets] = useState<Tache[]>([]);
-  const [graphiquesLoading, setGraphiquesLoading] = useState(true);
-  const [graphiquesPartiels, setGraphiquesPartiels] = useState(false);
-  const [personnelsSansAcces, setPersonnelsSansAcces] = useState<number | null>(null);
-
-  const chargerTachesProjets = async (liste: Projet[]) => {
-    if (liste.length === 0) {
-      setTachesProjets([]);
-      setGraphiquesPartiels(false);
-      setGraphiquesLoading(false);
-      return;
-    }
-
-    setGraphiquesLoading(true);
-    const resultats = await Promise.allSettled(liste.map((projet) => api.getTaches(projet.id)));
-    setTachesProjets(resultats.flatMap((resultat) => (
-      resultat.status === 'fulfilled' ? resultat.value : []
-    )));
-    setGraphiquesPartiels(resultats.some((resultat) => resultat.status === 'rejected'));
-    setGraphiquesLoading(false);
-  };
 
   const load = async () => {
     setLoadError(null);
     setTasksError(null);
     setIsLoading(true);
-    const [resProjets, resTaches, resFonctions, resPersonnel] = await Promise.allSettled([
+    const [resProjets, resTaches] = await Promise.allSettled([
       api.getProjets(),
       modeMembre ? api.getMyTasks() : isAdmin ? api.getUpcomingTasks() : Promise.resolve([] as Tache[]),
-      isAdmin ? Promise.resolve([] as Fonction[]) : api.getFonctions(),
-      isAdmin ? api.getPersonnelSansAcces() : Promise.resolve([]),
     ]);
 
     if (resProjets.status === 'rejected') {
@@ -72,21 +44,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       return;
     }
 
-    if (resFonctions.status === 'rejected' && !isAdmin) {
-      setLoadError(toApiError(resFonctions.reason).message || 'Impossible de déterminer votre rôle sur les projets.');
-      setIsLoading(false);
-      return;
-    }
-
     setProjets(resProjets.value);
-    setFonctions(resFonctions.status === 'fulfilled' ? resFonctions.value : []);
     setTaches(resTaches.status === 'fulfilled' ? resTaches.value : []);
     setTasksError(resTaches.status === 'rejected'
       ? toApiError(resTaches.reason).message || 'Impossible de charger les tâches.'
       : null);
-    setPersonnelsSansAcces(resPersonnel.status === 'fulfilled' ? resPersonnel.value.length : null);
-    setTachesProjets([]);
-    void chargerTachesProjets(resProjets.value);
     setIsLoading(false);
   };
 
@@ -95,8 +57,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   }, []);
 
   const today = getLocalDateString();
-  const mode = determinerMode(isAdmin, projets, fonctions);
-  const geres = projetsDiriges(projets, fonctions);
 
   // Projets
   const actifs = projets.filter((p) => p.statut === 'en_cours');
@@ -124,7 +84,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     .slice(0, 5);
 
   // Nouvel inscrit : pas encore de projet ni de tâche
-  const nouvelArrivant = !isLoading && !loadError && !isAdmin && projets.length === 0 && taches.length === 0;
+  const nouvelArrivant =
+    !isLoading && !loadError && !tasksError && !isAdmin && projets.length === 0 && taches.length === 0;
 
   type Kpi = {
     label: string;
@@ -165,73 +126,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   ];
 
   const lienSection = 'text-xs font-medium text-brand-800 hover:text-brand-950 transition-colors';
-
-  if (!isLoading && !loadError) {
-    return (
-      <div className="space-y-6">
-        <div className="pb-4 border-b border-slate-200">
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Tableau de bord</h1>
-          <p className="mt-1 text-xs text-slate-500">
-            Bienvenue, <span className="font-semibold text-slate-700">{user?.name}</span>. Vue d'ensemble de vos
-            projets et échéances.
-          </p>
-        </div>
-        {tasksError && (
-          <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">
-            <span>{tasksError} Les indicateurs liés aux tâches peuvent être incomplets.</span>
-            <button onClick={load} className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 font-medium">
-              Réessayer
-            </button>
-          </div>
-        )}
-        {nouvelArrivant && !tasksError ? (
-          <EmptyState
-            icon={<FolderKanban className="w-6 h-6" />}
-            title="Bienvenue sur SGP"
-            description="Vous n'appartenez encore à aucun projet. Un chef de projet ou un administrateur doit vous ajouter pour que vos projets et vos tâches apparaissent ici."
-          />
-        ) : mode === 'admin' ? (
-          <AdminDashboard
-            projets={projets}
-            taches={taches}
-            tachesProjets={tachesProjets}
-            graphiquesLoading={graphiquesLoading}
-            graphiquesPartiels={graphiquesPartiels}
-            personnel={personnel}
-            unreadCount={unreadCount}
-            today={today}
-            onNavigate={onNavigate}
-            personnelsSansAcces={personnelsSansAcces}
-          />
-        ) : mode === 'chef' ? (
-          <ChefDashboard
-            projets={projets}
-            geres={geres}
-            taches={taches}
-            tachesProjets={tachesProjets}
-            graphiquesLoading={graphiquesLoading}
-            graphiquesPartiels={graphiquesPartiels}
-            personnel={personnel}
-            unreadCount={unreadCount}
-            today={today}
-            onNavigate={onNavigate}
-          />
-        ) : (
-          <MembreDashboard
-            projets={projets}
-            taches={taches}
-            tachesProjets={tachesProjets}
-            graphiquesLoading={graphiquesLoading}
-            graphiquesPartiels={graphiquesPartiels}
-            personnel={personnel}
-            unreadCount={unreadCount}
-            today={today}
-            onNavigate={onNavigate}
-          />
-        )}
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -280,6 +174,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
               load();
             }}
             className="px-3 py-1.5 font-medium text-rose-800 bg-white border border-rose-200 rounded-lg hover:bg-rose-100 transition-colors shrink-0"
+          >
+            Réessayer
+          </button>
+        </div>
+      )}
+
+      {tasksError && !loadError && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-3 p-4 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl"
+        >
+          <span>{tasksError} Les indicateurs liés aux tâches peuvent être incomplets.</span>
+          <button
+            onClick={() => {
+              setIsLoading(true);
+              load();
+            }}
+            className="px-3 py-1.5 font-medium text-amber-800 bg-white border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors shrink-0"
           >
             Réessayer
           </button>
