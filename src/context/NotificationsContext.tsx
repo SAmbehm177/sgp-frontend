@@ -6,6 +6,7 @@ import { useAuth } from './AuthContext';
 interface NotificationsContextType {
   notifications: NotificationItem[]; // les plus récentes
   unreadCount: number;
+  refreshError: string | null;
   refresh: () => Promise<void>;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
@@ -19,14 +20,17 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
   const { isAuthenticated } = useAuth();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
       const [liste, nonLues] = await Promise.all([api.getNotifications(), api.getUnreadCount()]);
       setNotifications(liste);
       setUnreadCount(nonLues);
-    } catch {
-      // Silencieux : une actualisation manquée ne doit pas gêner l'écran
+      setRefreshError(null);
+    } catch (error) {
+      console.error('[SGP] Impossible d’actualiser les notifications.', error);
+      setRefreshError('Les notifications n’ont pas pu être actualisées.');
     }
   }, []);
 
@@ -35,6 +39,7 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!isAuthenticated) {
       setNotifications([]);
       setUnreadCount(0);
+      setRefreshError(null);
       return;
     }
 
@@ -78,7 +83,9 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   return (
-    <NotificationsContext.Provider value={{ notifications, unreadCount, refresh, markAsRead, markAllAsRead }}>
+    <NotificationsContext.Provider
+      value={{ notifications, unreadCount, refreshError, refresh, markAsRead, markAllAsRead }}
+    >
       {children}
     </NotificationsContext.Provider>
   );

@@ -18,7 +18,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   breadcrumbs = [],
 }) => {
   const { user, personnel, logout, isAdmin } = useAuth();
-  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const { notifications, unreadCount, refreshError, refresh, markAsRead, markAllAsRead } = useNotifications();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifs, setShowNotifs] = useState(false);
 
@@ -114,6 +114,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </button>
                 )}
               </div>
+
+              {refreshError && (
+                <div role="alert" className="flex items-center justify-between gap-2 border-b border-amber-100 bg-amber-50 px-4 py-2 text-[11px] text-amber-800">
+                  <span>{refreshError}</span>
+                  <button onClick={refresh} className="shrink-0 font-semibold underline">
+                    Réessayer
+                  </button>
+                </div>
+              )}
 
               {notifications.length === 0 ? (
                 <p className="px-4 py-8 text-center text-xs text-slate-500">Aucune notification.</p>

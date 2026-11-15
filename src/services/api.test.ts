@@ -48,6 +48,44 @@ describe('partial updates', () => {
     );
   });
 
+  it('creates a project with its required project lead', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: 1,
+          titre: 'Nouveau projet',
+          description: '',
+          date_debut: '2026-01-01',
+          date_fin: '2026-12-31',
+          statut: 'en cours',
+        }),
+        { status: 201, headers: { 'Content-Type': 'application/json' } }
+      )
+    );
+
+    await api.createProjet({
+      titre: 'Nouveau projet',
+      description: '',
+      date_debut: '2026-01-01',
+      date_fin_prevue: '2026-12-31',
+      chef_id: 7,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:8000/api/projets',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          titre: 'Nouveau projet',
+          description: '',
+          date_debut: '2026-01-01',
+          date_fin: '2026-12-31',
+          chef_id: 7,
+        }),
+      })
+    );
+  });
+
   it('updates a task with PATCH and sends only changed fields', async () => {
     fetchMock.mockResolvedValue(
       new Response(
@@ -125,6 +163,47 @@ describe('project member role updates', () => {
         method: 'PATCH',
         body: JSON.stringify({ fonction_id: 3 }),
       })
+    );
+  });
+});
+
+describe('discussion deletion polling', () => {
+  const fetchMock = vi.fn();
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('requests deletion events separately from newer messages', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: [],
+          a_plus_ancien: false,
+          suppressions: [{ id: 4, message_id: 21 }],
+          dernier_id_suppression: 4,
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      )
+    );
+
+    await expect(
+      api.getMessages(3, { apresId: 25, apresSuppressionId: 3 })
+    ).resolves.toEqual({
+      messages: [],
+      aPlusAncien: false,
+      suppressions: [{ id: 4, messageId: 21 }],
+      dernierIdSuppression: 4,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:8000/api/projets/3/messages?apres_id=25&apres_suppression_id=3',
+      expect.any(Object)
     );
   });
 });

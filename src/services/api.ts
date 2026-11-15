@@ -222,8 +222,8 @@ class ApiService {
     description: string;
     date_debut: string;
     date_fin_prevue: string;
+    chef_id: number;
   }): Promise<Projet> {
-    // Le chef de projet se désigne ensuite depuis l'équipe du projet
     const raw = await this.request<any>('/projets', {
       method: 'POST',
       body: JSON.stringify({
@@ -231,6 +231,7 @@ class ApiService {
         description: data.description,
         date_debut: data.date_debut,
         date_fin: data.date_fin_prevue,
+        chef_id: data.chef_id,
       }),
     });
     return mapProjet(raw);
@@ -373,17 +374,30 @@ class ApiService {
   // Sans option : les 30 derniers messages. avantId : les 30 précédents. apresId : les nouveaux (sondage).
   public async getMessages(
     projetId: number,
-    opts: { avantId?: number; apresId?: number } = {}
-  ): Promise<{ messages: Message[]; aPlusAncien: boolean }> {
+    opts: { avantId?: number; apresId?: number; apresSuppressionId?: number } = {}
+  ): Promise<{
+    messages: Message[];
+    aPlusAncien: boolean;
+    suppressions: { id: number; messageId: number }[];
+    dernierIdSuppression: number;
+  }> {
     const params = new URLSearchParams();
     if (opts.avantId !== undefined) params.set('avant_id', String(opts.avantId));
     if (opts.apresId !== undefined) params.set('apres_id', String(opts.apresId));
+    if (opts.apresSuppressionId !== undefined) {
+      params.set('apres_suppression_id', String(opts.apresSuppressionId));
+    }
     const qs = params.toString();
 
     const raw = await this.request<any>(`/projets/${projetId}/messages${qs ? `?${qs}` : ''}`);
     return {
       messages: ((raw.data ?? []) as any[]).map(mapMessage),
       aPlusAncien: !!raw.a_plus_ancien,
+      suppressions: ((raw.suppressions ?? []) as any[]).map((s) => ({
+        id: Number(s.id),
+        messageId: Number(s.message_id),
+      })),
+      dernierIdSuppression: Number(raw.dernier_id_suppression ?? 0),
     };
   }
 
@@ -433,8 +447,12 @@ class ApiService {
   }
 
   // Recherche dans l'annuaire (admin et chefs de projet) : GET /personnels?q=
-  public async searchPersonnel(q: string): Promise<Personnel[]> {
-    const raw = await this.request<any>(q ? `/personnels?q=${encodeURIComponent(q)}` : '/personnels');
+  public async searchPersonnel(q: string, avecAcces = false): Promise<Personnel[]> {
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (avecAcces) params.set('avec_acces', '1');
+    const query = params.toString();
+    const raw = await this.request<any>(`/personnels${query ? `?${query}` : ''}`);
     return ((raw.data ?? raw) as any[])
       .map((p) => mapPersonnel(p))
       .filter((p): p is Personnel => p !== null);
@@ -461,7 +479,7 @@ class ApiService {
   // Création du compte d'un personnel : POST /personnels/{id}/acces
   public async grantAccess(
     personnelId: number,
-    data: { email: string; password: string; role: 'user' | 'admin' }
+    data: { email: string; password: string }
   ): Promise<void> {
     await this.request(`/personnels/${personnelId}/acces`, { method: 'POST', body: JSON.stringify(data) });
   }

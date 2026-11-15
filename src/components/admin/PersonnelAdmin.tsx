@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useToast } from '../../context/ToastContext';
 import { api, toApiError } from '../../services/api';
 import { Personnel } from '../../types/sgp';
 import { Modal } from '../common/Modal';
-import { AlertCircle, KeyRound, UserPlus } from 'lucide-react';
+import { AlertCircle, UserPlus } from 'lucide-react';
 
 interface PersonnelAdminProps {
   onAccessGranted: () => void; // recharge la liste des comptes
@@ -14,40 +14,19 @@ const INPUT =
 const LABEL = 'block text-xs font-medium text-slate-700 mb-1';
 
 const FICHE_VIDE = { prenom: '', nom: '', matricule: '', poste: '' };
-const ACCES_VIDE = { email: '', password: '', role: 'user' as 'user' | 'admin' };
+const ACCES_VIDE = { email: '', password: '' };
 
 export const PersonnelAdmin: React.FC<PersonnelAdminProps> = ({ onAccessGranted }) => {
   const toast = useToast();
-
-  const [sansAcces, setSansAcces] = useState<Personnel[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [creation, setCreation] = useState(false);
   const [fiche, setFiche] = useState(FICHE_VIDE);
   const [personnelCree, setPersonnelCree] = useState<Personnel | null>(null);
 
-  const [cible, setCible] = useState<Personnel | null>(null);
   const [acces, setAcces] = useState(ACCES_VIDE);
 
   const [isSaving, setIsSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-
-  const charger = useCallback(async () => {
-    setLoadError(null);
-    try {
-      setSansAcces(await api.getPersonnelSansAcces());
-    } catch (caught) {
-      const err = toApiError(caught);
-      setLoadError(err.message || 'Impossible de charger le personnel.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    charger();
-  }, [charger]);
 
   const premiereErreur = (err: ReturnType<typeof toApiError>) =>
     Object.values(err.errors ?? {})[0]?.[0] || err.message;
@@ -78,11 +57,9 @@ export const PersonnelAdmin: React.FC<PersonnelAdminProps> = ({ onAccessGranted 
       await api.grantAccess(personnel.id, {
         email: acces.email.trim(),
         password: acces.password,
-        role: acces.role,
       });
-      toast.success('Personnel et accès créés', `${personnel.prenom} ${personnel.nom} peut se connecter.`);
+      toast.success('Personnel et accès créés', `${personnel.prenom} ${personnel.nom} peut se connecter comme membre.`);
       fermerCreation();
-      await charger();
       onAccessGranted();
     } catch (caught) {
       const message = premiereErreur(toApiError(caught));
@@ -91,30 +68,6 @@ export const PersonnelAdmin: React.FC<PersonnelAdminProps> = ({ onAccessGranted 
           ? `La fiche de ${personnel.prenom} ${personnel.nom} est créée, mais son accès n'a pas pu être accordé. ${message} Vous pouvez réessayer sans recréer la fiche.`
           : message
       );
-      if (personnel) await charger();
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const accorderAcces = async (e: React.SyntheticEvent) => {
-    e.preventDefault();
-    if (!cible) return;
-    setFormError(null);
-    setIsSaving(true);
-    try {
-      await api.grantAccess(cible.id, {
-        email: acces.email.trim(),
-        password: acces.password,
-        role: acces.role,
-      });
-      toast.success('Accès accordé', `${cible.prenom} ${cible.nom} peut se connecter avec cet e-mail.`);
-      setCible(null);
-      setAcces(ACCES_VIDE);
-      await charger();
-      onAccessGranted();
-    } catch (caught) {
-      setFormError(premiereErreur(toApiError(caught)));
     } finally {
       setIsSaving(false);
     }
@@ -150,9 +103,9 @@ export const PersonnelAdmin: React.FC<PersonnelAdminProps> = ({ onAccessGranted 
     <section className="bg-white rounded-xl border border-slate-200">
       <div className="flex items-center justify-between gap-3 p-4 border-b border-slate-100">
         <div>
-          <h2 className="text-sm font-semibold text-slate-900">Personnel sans accès</h2>
+          <h2 className="text-sm font-semibold text-slate-900">Créer un personnel</h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Les nouvelles fiches et leur accès se créent ensemble. Vous pouvez aussi accorder un accès à une fiche existante.
+            La fiche et son accès sont créés ensemble. Tout nouveau compte reçoit le rôle Membre.
           </p>
         </div>
         <button
@@ -170,14 +123,6 @@ export const PersonnelAdmin: React.FC<PersonnelAdminProps> = ({ onAccessGranted 
         </button>
       </div>
 
-      {isLoading && <div className="h-20 animate-pulse" aria-busy="true" />}
-      {loadError && <p className="p-4 text-xs text-rose-700">{loadError}</p>}
-
-      {!isLoading && !loadError && sansAcces.length === 0 && (
-        <p className="p-4 text-xs text-slate-500">Tout le personnel a déjà un accès.</p>
-      )}
-
-
       <Modal
         isOpen={creation}
         onClose={fermerCreation}
@@ -185,7 +130,7 @@ export const PersonnelAdmin: React.FC<PersonnelAdminProps> = ({ onAccessGranted 
         description={
           personnelCree
             ? `La fiche de ${personnelCree.prenom} ${personnelCree.nom} est créée. Renseignez les informations de connexion.`
-            : 'Renseignez la fiche et les identifiants pour créer le personnel et son compte en une seule démarche.'
+            : 'Renseignez la fiche et les identifiants pour créer un compte membre.'
         }
         maxWidth="md"
       >
@@ -225,13 +170,6 @@ export const PersonnelAdmin: React.FC<PersonnelAdminProps> = ({ onAccessGranted 
           <div>
             <label className={LABEL} htmlFor="p-password">Mot de passe provisoire (8 caractères minimum)</label>
             <input id="p-password" type="text" autoComplete="off" minLength={8} className={INPUT} required value={acces.password} onChange={(e) => setAcces({ ...acces, password: e.target.value })} />
-          </div>
-          <div>
-            <label className={LABEL} htmlFor="p-role">Rôle</label>
-            <select id="p-role" className={INPUT} value={acces.role} onChange={(e) => setAcces({ ...acces, role: e.target.value as 'user' | 'admin' })}>
-              <option value="user">Membre</option>
-              <option value="admin">Administrateur</option>
-            </select>
           </div>
           {boutons(personnelCree ? "Réessayer l'accès" : 'Créer le personnel et son accès', fermerCreation)}
         </form>

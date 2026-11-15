@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { api, toApiError } from '../../services/api';
-import { Projet, RouteParams } from '../../types/sgp';
+import { Personnel, Projet, RouteParams } from '../../types/sgp';
 import { ProgressBar } from '../common/ProgressBar';
 import { ProjectStatusBadge } from '../common/Badge';
 import { EmptyState } from '../common/EmptyState';
@@ -51,6 +51,12 @@ export const ProjectsListView: React.FC<ProjectsListViewProps> = ({
   const [formErrors, setFormErrors] = useState<Partial<Record<FormField, string>>>({});
   const [formMessage, setFormMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [chefSearch, setChefSearch] = useState('');
+  const [chefsDisponibles, setChefsDisponibles] = useState<Personnel[]>([]);
+  const [chefSelectionne, setChefSelectionne] = useState<Personnel | null>(null);
+  const [chefSearchError, setChefSearchError] = useState<string | null>(null);
+  const [chefError, setChefError] = useState<string | null>(null);
+  const [isSearchingChef, setIsSearchingChef] = useState(false);
 
   const loadProjets = async () => {
     setLoadError(null);
@@ -68,11 +74,41 @@ export const ProjectsListView: React.FC<ProjectsListViewProps> = ({
     loadProjets();
   }, []);
 
+  useEffect(() => {
+    if (!isCreateModalOpen) return;
+
+    let annule = false;
+    const timer = window.setTimeout(async () => {
+      setIsSearchingChef(true);
+      setChefSearchError(null);
+      try {
+        const personnels = await api.searchPersonnel(chefSearch.trim(), true);
+        if (!annule) setChefsDisponibles(personnels);
+      } catch (caught) {
+        if (!annule) {
+          setChefSearchError(toApiError(caught).message || 'Impossible de rechercher un chef de projet.');
+        }
+      } finally {
+        if (!annule) setIsSearchingChef(false);
+      }
+    }, chefSearch ? 300 : 0);
+
+    return () => {
+      annule = true;
+      window.clearTimeout(timer);
+    };
+  }, [chefSearch, isCreateModalOpen]);
+
   const closeCreateModal = () => {
     setIsCreateModalOpen(false);
     setForm({ ...EMPTY_FORM, date_debut: getLocalDateString() });
     setFormErrors({});
     setFormMessage(null);
+    setChefSearch('');
+    setChefsDisponibles([]);
+    setChefSelectionne(null);
+    setChefSearchError(null);
+    setChefError(null);
   };
 
   const update = (field: FormField) => (
@@ -86,13 +122,15 @@ export const ProjectsListView: React.FC<ProjectsListViewProps> = ({
     if (!form.titre.trim()) errors.titre = 'Le titre du projet est obligatoire.';
     if (!form.date_debut) errors.date_debut = 'La date de début est obligatoire.';
     else if (isBeforeLocalToday(form.date_debut)) {
-      errors.date_debut = "La date de d�but ne peut pas �tre ant�rieure � aujourd'hui.";
+      errors.date_debut = "La date de début ne peut pas être antérieure à aujourd'hui.";
     }
     if (!form.date_fin) errors.date_fin = 'La date de fin est obligatoire.';
     if (form.date_debut && form.date_fin && form.date_fin < form.date_debut) {
       errors.date_fin = 'La date de fin ne peut pas précéder la date de début.';
     }
-    if (Object.keys(errors).length > 0) {
+    if (!chefSelectionne) setChefError('Désignez un chef de projet avec un compte actif.');
+    else setChefError(null);
+    if (Object.keys(errors).length > 0 || !chefSelectionne) {
       setFormMessage(null);
       setFormErrors(errors);
       return;
@@ -107,6 +145,7 @@ export const ProjectsListView: React.FC<ProjectsListViewProps> = ({
         description: form.description.trim(),
         date_debut: form.date_debut,
         date_fin_prevue: form.date_fin,
+        chef_id: chefSelectionne.id,
       });
       toast.success('Projet créé', `Le projet « ${created.titre} » a été créé.`);
       closeCreateModal();
@@ -114,6 +153,7 @@ export const ProjectsListView: React.FC<ProjectsListViewProps> = ({
     } catch (caught) {
       const err = toApiError(caught);
       setFormMessage(err?.message || 'Impossible de créer le projet.');
+      if (err?.errors?.chef_id?.[0]) setChefError(err.errors.chef_id[0]);
       if (err?.errors) {
         const fe: Partial<Record<FormField, string>> = {};
         Object.entries(err.errors as Record<string, string[]>).forEach(([k, v]) => {
@@ -311,7 +351,7 @@ export const ProjectsListView: React.FC<ProjectsListViewProps> = ({
         isOpen={isCreateModalOpen}
         onClose={closeCreateModal}
         title="Créer un nouveau projet"
-        description="Renseignez les informations du projet. Vous pourrez ensuite constituer l'équipe et désigner le chef de projet."
+        description="Renseignez les informations du projet et choisissez son chef parmi les personnels ayant un compte actif."
         maxWidth="lg"
       >
         <form onSubmit={handleCreateProject} className="space-y-4" noValidate>
@@ -355,6 +395,74 @@ export const ProjectsListView: React.FC<ProjectsListViewProps> = ({
             {formErrors.description && (
               <p className="text-[11px] text-rose-600 mt-1">{formErrors.description}</p>
             )}
+          </div>
+
+          <div>
+            <label htmlFor="projet-chef" className="block text-xs font-semibold text-slate-700 mb-1">
+              Chef de projet <span className="text-rose-500">*</span>
+            </label>
+            {chefSelectionne ? (
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2">
+                <span className="min-w-0 truncate text-xs font-medium text-slate-800">
+                  {chefSelectionne.prenom} {chefSelectionne.nom} · {chefSelectionne.poste}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setChefSelectionne(null);
+                    setChefError(null);
+                  }}
+                  className="shrink-0 text-xs font-medium text-brand-800 hover:text-brand-950"
+                >
+                  Modifier
+                </button>
+              </div>
+            ) : (
+              <>
+                <input
+                  id="projet-chef"
+                  type="search"
+                  value={chefSearch}
+                  onChange={(event) => {
+                    setChefSearch(event.target.value);
+                    setChefError(null);
+                  }}
+                  placeholder="Rechercher par nom ou matricule..."
+                  autoComplete="off"
+                  aria-expanded={chefsDisponibles.length > 0}
+                  aria-controls="projet-chefs-disponibles"
+                  className={inputClass(!!chefError || !!chefSearchError)}
+                />
+                <div id="projet-chefs-disponibles" className="mt-1 max-h-40 overflow-y-auto rounded-lg border border-slate-200 bg-white">
+                  {isSearchingChef ? (
+                    <p className="px-3 py-2 text-xs text-slate-500">Recherche en cours…</p>
+                  ) : chefSearchError ? (
+                    <p role="alert" className="px-3 py-2 text-xs text-rose-600">{chefSearchError}</p>
+                  ) : chefsDisponibles.length > 0 ? (
+                    chefsDisponibles.map((personnel) => (
+                      <button
+                        key={personnel.id}
+                        type="button"
+                        onClick={() => {
+                          setChefSelectionne(personnel);
+                          setChefSearch('');
+                          setChefError(null);
+                        }}
+                        className="block w-full px-3 py-2 text-left text-xs hover:bg-slate-50"
+                      >
+                        <span className="block font-medium text-slate-800">{personnel.prenom} {personnel.nom}</span>
+                        <span className="text-[11px] text-slate-500">{personnel.matricule} · {personnel.poste}</span>
+                      </button>
+                    ))
+                  ) : (
+                    <p className="px-3 py-2 text-xs text-slate-500">
+                      Aucun personnel avec un compte actif trouvé.
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
+            {chefError && <p className="mt-1 text-[11px] text-rose-600">{chefError}</p>}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

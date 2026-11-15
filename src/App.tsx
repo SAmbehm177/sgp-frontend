@@ -23,7 +23,7 @@ import { ProjectTab, RouteParams } from './types/sgp';
 const ONGLETS_PROJET: ProjectTab[] = ['vue-ensemble', 'taches', 'membres', 'discussion', 'statistiques'];
 
 function AppContent() {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading, isAdmin } = useAuth();
 
   // Navigation state
   const [currentRoute, setCurrentRoute] = useState<string>('dashboard');
@@ -103,6 +103,12 @@ function AppContent() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && currentRoute === 'projects-new' && !isAdmin) {
+      navigate('projets');
+    }
+  }, [currentRoute, isAdmin, isAuthenticated, isLoading]);
+
   // Breadcrumbs calculés pour le Top Bar Contract
   const getBreadcrumbs = () => {
     const crumbs: Array<{ label: string; onClick?: () => void }> = [];
@@ -177,7 +183,7 @@ function AppContent() {
 
           {currentRoute === 'projets' && <ProjectsListView onNavigate={navigate} />}
 
-          {currentRoute === 'projects-new' && (
+          {currentRoute === 'projects-new' && isAdmin && (
             <ProjectsListView onNavigate={navigate} openCreateImmediately={true} />
           )}
 

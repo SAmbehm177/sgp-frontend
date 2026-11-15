@@ -8,6 +8,7 @@ import { Modal } from '../common/Modal';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { EmptyState } from '../common/EmptyState';
 import { formatJour } from '../../utils/format';
+import { getLocalDateString } from '../../utils/date';
 import {
   Plus,
   Search,
@@ -56,8 +57,6 @@ const inputClass = (hasError: boolean) =>
 const filterClass =
   'px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-hidden focus:ring-2 focus:border-brand-800 focus:ring-brand-800/20';
 
-const aujourdhui = () => new Date().toISOString().split('T')[0];
-
 export const ProjectTasksView: React.FC<ProjectTasksViewProps> = ({
   projet,
   membres,
@@ -65,7 +64,7 @@ export const ProjectTasksView: React.FC<ProjectTasksViewProps> = ({
   onChanged,
   onOpenTeam,
 }) => {
-  const {personnel } = useAuth();
+  const { personnel, isAdmin } = useAuth();
   const toast = useToast();
 
   const [taches, setTaches] = useState<Tache[]>([]);
@@ -123,11 +122,13 @@ export const ProjectTasksView: React.FC<ProjectTasksViewProps> = ({
   const raisonBlocage = projetAnnule
     ? "Ce projet est annulé : il n'est plus possible d'y ajouter des tâches."
     : projetTermine
-    ? 'Ce projet est terminé : passez son statut à « En cours » pour pouvoir y ajouter des tâches.'
+    ? isAdmin
+      ? 'Ce projet est terminé : rouvrez-le avant d’y ajouter des tâches.'
+      : 'Ce projet est terminé : contactez un administrateur pour le rouvrir avant d’y ajouter des tâches.'
     : membres.length === 0
     ? "Ajoutez d'abord au moins un membre à l'équipe : une tâche est toujours confiée à un membre du projet."
     : null;
-  const today = aujourdhui();
+  const today = getLocalDateString();
   const estEnRetard = (t: Tache) => t.statut === 'en_cours' && t.date_echeance < today;
   const nbEnRetard = taches.filter(estEnRetard).length;
 
@@ -377,7 +378,9 @@ export const ProjectTasksView: React.FC<ProjectTasksViewProps> = ({
               : projetAnnule
               ? "Ce projet est annulé : il n'est plus possible d'y ajouter des tâches."
               : projetTermine
-              ? 'Ce projet est terminé : passez son statut à « En cours » pour pouvoir y ajouter des tâches.'
+              ? isAdmin
+                ? 'Ce projet est terminé : vous pouvez le rouvrir avant d’y ajouter des tâches.'
+                : 'Ce projet est terminé. Seul un administrateur peut le rouvrir.'
               : membres.length === 0
               ? "Constituez d'abord l'équipe : une tâche est toujours confiée à un membre du projet."
               : 'Planifiez la première tâche et confiez-la à un membre de l’équipe.'
@@ -540,7 +543,7 @@ export const ProjectTasksView: React.FC<ProjectTasksViewProps> = ({
                                   </button>
                                 </>
                               )}
-                              {peutStatut && t.statut !== 'en_cours' && (
+                              {peutStatut && t.statut !== 'en_cours' && !projetAnnule && (
                                 <button
                                   onClick={() => handleStatusChange(t, 'en_cours')}
                                   disabled={busyId === t.id}

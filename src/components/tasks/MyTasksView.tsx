@@ -6,6 +6,7 @@ import { Tache, TaskStatus, RouteParams } from '../../types/sgp';
 import { TaskStatusBadge, TaskPriorityBadge } from '../common/Badge';
 import { EmptyState } from '../common/EmptyState';
 import { formatJour } from '../../utils/format';
+import { getLocalDateString } from '../../utils/date';
 import {
   CheckSquare,
   Search,
@@ -23,8 +24,6 @@ interface MyTasksViewProps {
 
 type Vue = 'toutes' | 'en_cours' | 'retard' | 'terminees';
 
-const aujourdhui = () => new Date().toISOString().split('T')[0];
-
 export const MyTasksView: React.FC<MyTasksViewProps> = ({ onNavigate, initialFilter }) => {
   const { user, isAdmin } = useAuth();
   const toast = useToast();
@@ -35,7 +34,15 @@ export const MyTasksView: React.FC<MyTasksViewProps> = ({ onNavigate, initialFil
   const [sansFiche, setSansFiche] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
 
-  const [vue, setVue] = useState<Vue>(initialFilter === 'overdue' ? 'retard' : 'toutes');
+  const [vue, setVue] = useState<Vue>(
+    initialFilter === 'overdue'
+      ? 'retard'
+      : initialFilter === 'en_cours'
+      ? 'en_cours'
+      : initialFilter === 'termine'
+      ? 'terminees'
+      : 'toutes'
+  );
   const [search, setSearch] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('all');
 
@@ -62,7 +69,7 @@ export const MyTasksView: React.FC<MyTasksViewProps> = ({ onNavigate, initialFil
     loadTaches();
   }, []);
 
-  const today = aujourdhui();
+  const today = getLocalDateString();
   const estEnRetard = (t: Tache) => t.statut === 'en_cours' && t.date_echeance < today;
 
   const compteurs = {

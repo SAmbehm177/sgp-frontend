@@ -43,11 +43,14 @@ export const ProjectDiscussionView: React.FC<ProjectDiscussionViewProps> = ({ pr
   const listRef = useRef<HTMLDivElement>(null);
   const collerAuBas = useRef(true); // faut-il redescendre automatiquement à l'arrivée d'un message ?
   const dernierId = useRef(0); // sert au sondage : « donne-moi ce qui est après ce message »
+  const derniereSuppressionId = useRef(0);
 
   // Chargement initial (et à chaque changement de projet)
   useEffect(() => {
     let annule = false;
     collerAuBas.current = true;
+    dernierId.current = 0;
+    derniereSuppressionId.current = 0;
     setIsLoading(true);
     setLoadError(null);
     setMessages([]);
@@ -58,6 +61,7 @@ export const ProjectDiscussionView: React.FC<ProjectDiscussionViewProps> = ({ pr
         if (annule) return;
         setMessages(res.messages);
         setAPlusAncien(res.aPlusAncien);
+        derniereSuppressionId.current = res.dernierIdSuppression;
         // Ouvrir la discussion marque ses notifications comme lues côté API : on actualise la cloche
         refreshNotifications();
       })
@@ -85,15 +89,25 @@ export const ProjectDiscussionView: React.FC<ProjectDiscussionViewProps> = ({ pr
     const timer = setInterval(async () => {
       if (document.hidden) return;
       try {
-        const res = await api.getMessages(projetId, { apresId: dernierId.current });
-        if (res.messages.length === 0) return;
-        refreshNotifications();
-        setMessages((prev) => {
-          const connus = new Set(prev.map((m) => m.id));
-          return [...prev, ...res.messages.filter((m) => !connus.has(m.id))];
+        const res = await api.getMessages(projetId, {
+          apresId: dernierId.current,
+          apresSuppressionId: derniereSuppressionId.current,
         });
-      } catch {
-        // silencieux : le prochain passage réessaiera
+        dernierId.current = Math.max(dernierId.current, ...res.messages.map((m) => m.id));
+        derniereSuppressionId.current = Math.max(
+          derniereSuppressionId.current,
+          res.dernierIdSuppression
+        );
+        if (res.messages.length === 0 && res.suppressions.length === 0) return;
+        if (res.messages.length > 0) refreshNotifications();
+        setMessages((prev) => {
+          const supprimes = new Set(res.suppressions.map((s) => s.messageId));
+          const conserves = prev.filter((m) => !supprimes.has(m.id));
+          const connus = new Set(conserves.map((m) => m.id));
+          return [...conserves, ...res.messages.filter((m) => !supprimes.has(m.id) && !connus.has(m.id))];
+        });
+      } catch (caught) {
+        console.error('[SGP] Impossible de synchroniser les messages.', caught);
       }
     }, INTERVALLE_SONDAGE);
 

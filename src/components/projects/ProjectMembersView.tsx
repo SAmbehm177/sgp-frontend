@@ -105,7 +105,9 @@ export const ProjectMembersView: React.FC<ProjectMembersViewProps> = ({
       setAddError('Sélectionnez une personne dans la liste.');
       return;
     }
-    if (fonctionId === '') {
+    const fonctionMembre = fonctions.find((f) => f.libelle === 'Membre');
+    const fonctionChoisie = isAdmin ? fonctionId : fonctionMembre?.id ?? '';
+    if (fonctionChoisie === '') {
       setAddError('Choisissez la fonction de cette personne dans le projet.');
       return;
     }
@@ -116,7 +118,7 @@ export const ProjectMembersView: React.FC<ProjectMembersViewProps> = ({
       await api.addMembre({
         projet_id: projet.id,
         personnel_id: selected.id,
-        fonction_id: Number(fonctionId),
+        fonction_id: Number(fonctionChoisie),
       });
       toast.success('Membre ajouté', `${selected.prenom} ${selected.nom} rejoint le projet.`);
       closeAdd();
@@ -238,7 +240,7 @@ export const ProjectMembersView: React.FC<ProjectMembersViewProps> = ({
           title="Aucun membre pour le moment"
           description={
             canManage
-              ? 'Ajoutez les personnes qui travaillent sur ce projet, puis désignez un chef de projet.'
+              ? 'Ajoutez le premier membre en lui attribuant la fonction « Chef de projet ».'
               : "Aucune personne n'est encore affectée à ce projet."
           }
           action={canManage ? { label: 'Ajouter un membre', onClick: () => setIsAddOpen(true) } : undefined}
@@ -367,7 +369,11 @@ export const ProjectMembersView: React.FC<ProjectMembersViewProps> = ({
         isOpen={isAddOpen}
         onClose={closeAdd}
         title="Ajouter un membre"
-        description="Recherchez un membre du personnel, puis choisissez sa fonction dans ce projet."
+        description={
+          isAdmin
+            ? 'Recherchez un membre du personnel, puis choisissez sa fonction dans ce projet.'
+            : 'Recherchez un membre du personnel. Sa fonction sera « Membre ».'
+        }
         maxWidth="lg"
       >
         <form onSubmit={handleAdd} className="space-y-4" noValidate>
@@ -446,25 +452,29 @@ export const ProjectMembersView: React.FC<ProjectMembersViewProps> = ({
             )}
           </div>
 
-          <div>
-            <label htmlFor="membre-fonction" className="block text-xs font-semibold text-slate-700 mb-1">
-              Fonction dans le projet <span className="text-rose-500">*</span>
-            </label>
-            <select
-              id="membre-fonction"
-              value={fonctionId}
-              onChange={(e) => setFonctionId(e.target.value ? Number(e.target.value) : '')}
-              className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white focus:outline-hidden focus:ring-2 focus:border-brand-800 focus:ring-brand-800/20"
-            >
-              <option value="">Choisir une fonction...</option>
-              {fonctions.map((f) => (
-                <option key={f.id} value={f.id} disabled={f.libelle === LIBELLE_CHEF && aDejaUnChef}>
-                  {f.libelle}
-                  {f.libelle === LIBELLE_CHEF && aDejaUnChef ? ' (déjà attribué)' : ''}
-                </option>
-              ))}
-            </select>
-          </div>
+          {isAdmin ? (
+            <div>
+              <label htmlFor="membre-fonction" className="block text-xs font-semibold text-slate-700 mb-1">
+                Fonction dans le projet <span className="text-rose-500">*</span>
+              </label>
+              <select
+                id="membre-fonction"
+                value={fonctionId}
+                onChange={(e) => setFonctionId(e.target.value ? Number(e.target.value) : '')}
+                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white focus:outline-hidden focus:ring-2 focus:border-brand-800 focus:ring-brand-800/20"
+              >
+                <option value="">Choisir une fonction...</option>
+                {fonctions.map((f) => (
+                  <option key={f.id} value={f.id} disabled={f.libelle === LIBELLE_CHEF && aDejaUnChef}>
+                    {f.libelle}
+                    {f.libelle === LIBELLE_CHEF && aDejaUnChef ? ' (déjà attribué)' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <p className="text-xs text-slate-600">Fonction attribuée : Membre</p>
+          )}
 
           <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
             <button
