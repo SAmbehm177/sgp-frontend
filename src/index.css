@@ -23,7 +23,7 @@
 
 @layer base {
   html {
-    font-size: clamp(16px, calc(15px + 0.25vw), 19px);
+    font-size: clamp(15px, calc(15px + 0.25vw), 19px);
     font-family: var(--font-sans);
     -webkit-text-size-adjust: 100%;
   }
@@ -59,7 +59,7 @@
   input,
   select,
   textarea {
-    font-size: max(16px, 1em);
+    font-size: max(18px, 3em);
   }
 }
 

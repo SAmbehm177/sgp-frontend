@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useNotifications } from '../../context/NotificationsContext';
 import { api, toApiError } from '../../services/api';
 import { Projet, Tache, RouteParams } from '../../types/sgp';
 import { ProgressBar } from '../common/ProgressBar';
@@ -17,7 +16,6 @@ interface DashboardViewProps {
 
 export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const { user, personnel, isAdmin } = useAuth();
-  const { unreadCount } = useNotifications();
 
   // « Mode membre » : le compte a une fiche personnel, donc des tâches qui lui sont confiées.
   // Un administrateur sans fiche voit à la place les tâches de tous les projets.
@@ -73,10 +71,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     ? {
         enCours: mesEnCours.length,
         enRetard: mesEnRetard.length,
+        terminees: taches.filter((t) => t.statut === 'termine').length,
       }
     : {
         enCours: somme('taches_en_cours'),
         enRetard: somme('taches_en_retard'),
+        terminees: projets.reduce((total, projet) => total + (projet.taches_terminees ?? 0), 0),
       };
 
   const aEcheanceProche = [...mesEnCours]
@@ -91,6 +91,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     label: string;
     value: number;
     detail: string;
+    labelClass?: string;
     valueClass?: string;
     detailClass?: string;
     onClick?: () => void;
@@ -113,15 +114,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       label: 'Tâches en retard',
       value: compteurs.enRetard,
       detail: 'Échéance dépassée',
+      labelClass: compteurs.enRetard > 0 ? 'text-rose-600' : undefined,
       valueClass: compteurs.enRetard > 0 ? 'text-rose-600' : undefined,
       detailClass: compteurs.enRetard > 0 ? 'text-rose-500' : undefined,
       onClick: modeMembre ? () => onNavigate('mes-taches', { filter: 'overdue' }) : undefined,
     },
     {
-      label: 'Notifications',
-      value: unreadCount,
-      detail: unreadCount > 0 ? 'Messages non lus' : 'À jour',
-      onClick: () => onNavigate('notifications'),
+      label: modeMembre ? 'Mes tâches terminées' : 'Tâches terminées',
+      value: compteurs.terminees,
+      detail: modeMembre ? 'Clôturées' : 'Tous projets confondus',
+      valueClass: 'text-emerald-700',
     },
   ];
 
@@ -221,7 +223,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
             {kpis.map((k) => {
               const contenu = (
                 <>
-                  <span className="text-xs font-medium text-slate-500">{k.label}</span>
+                  <span className={`text-xs font-medium ${k.labelClass ?? 'text-slate-500'}`}>{k.label}</span>
                   <p className={`text-2xl font-bold font-mono tabular-nums mt-2 ${k.valueClass ?? 'text-slate-900'}`}>
                     {k.value}
                   </p>

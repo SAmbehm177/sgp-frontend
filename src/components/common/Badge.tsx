@@ -52,6 +52,8 @@ export const TaskStatusBadge: React.FC<{
         title="Date d'échéance dépassée"
       >
         <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-pulse" aria-hidden="true" />
+        <span>En cours</span>
+        <span aria-hidden="true">·</span>
         En retard
       </span>
     );
