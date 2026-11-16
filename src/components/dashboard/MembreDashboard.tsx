@@ -23,7 +23,7 @@ export const MembreDashboard: React.FC<DashboardData> = ({
     {
       label: 'Mes tâches en cours',
       value: enCours.length,
-      detail: 'À traiter et clôturer',
+      detail: 'À traiter et clôturer, retards inclus',
       onClick: () => onNavigate('mes-taches'),
     },
     {

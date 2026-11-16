@@ -31,8 +31,14 @@ export const StatusDonut: React.FC<StatusDonutProps> = ({ tasks, today, titre = 
       tauxTermine: pct(termine),
       segments: [
         { key: 'termine' as Cle, label: 'Terminées', count: termine, percent: pct(termine), color: '#16A34A' },
-        { key: 'en_cours_ok' as Cle, label: 'En cours (dans les délais)', count: enCoursOk, percent: pct(enCoursOk), color: '#2563EB' },
-        { key: 'en_retard' as Cle, label: 'En retard', count: enRetard, percent: pct(enRetard), color: '#DC2626' },
+        { key: 'en_cours_ok' as Cle, label: 'En cours', count: enCoursOk, percent: pct(enCoursOk), color: '#2563EB' },
+        {
+          key: 'en_retard' as Cle,
+          label: 'En retard',
+          count: enRetard,
+          percent: pct(enRetard),
+          color: '#DC2626',
+        },
         { key: 'annule' as Cle, label: 'Annulées', count: annule, percent: pct(annule), color: '#94A3B8' },
       ],
     };

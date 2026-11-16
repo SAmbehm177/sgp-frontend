@@ -95,9 +95,7 @@ export const RepartitionDonut: React.FC<RepartitionDonutProps> = ({ repartition 
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <span className={`w-2.5 h-2.5 rounded-xs shrink-0 ${STATUTS[cle].fond}`} aria-hidden="true" />
-                  <span className="text-slate-700 font-medium truncate">
-                    {cle === 'enCours' ? 'En cours' : STATUTS[cle].label}
-                  </span>
+                  <span className="text-slate-700 font-medium truncate">{STATUTS[cle].label}</span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 font-mono tabular-nums">
                   <span className="font-semibold text-slate-900">{repartition[cle]}</span>

@@ -107,7 +107,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     {
       label: modeMembre ? 'Mes tâches en cours' : 'Tâches en cours',
       value: compteurs.enCours,
-      detail: modeMembre ? 'À traiter et clôturer' : 'Tous projets confondus',
+      detail: modeMembre ? 'À traiter et clôturer, retards inclus' : 'Retards inclus · Tous projets confondus',
       onClick: modeMembre ? () => onNavigate('mes-taches') : undefined,
     },
     {

@@ -615,8 +615,18 @@ export const ProjectProgressComparison: React.FC<ProjectProgressComparisonProps>
 
                           const statusSeries = [
                             { key: 'done', value: terminees, color: 'bg-emerald-600', label: 'Terminées' },
-                            { key: 'active', value: enCoursOk, color: 'bg-blue-600', label: 'En cours' },
-                            { key: 'late', value: enRetard, color: 'bg-rose-600', label: 'En retard' },
+                            {
+                              key: 'active',
+                              value: enCoursOk,
+                              color: 'bg-blue-600',
+                              label: 'En cours',
+                            },
+                            {
+                              key: 'late',
+                              value: enRetard,
+                              color: 'bg-rose-600',
+                              label: 'En retard',
+                            },
                             { key: 'cancel', value: annulees, color: 'bg-slate-300', label: 'Annulées' },
                           ];
 

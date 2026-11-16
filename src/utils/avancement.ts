@@ -21,8 +21,18 @@ export interface StyleStatut {
 // Classes écrites en toutes lettres pour que Tailwind les détecte
 export const STATUTS: Record<CleStatut, StyleStatut> = {
   termine: { label: 'Terminées', fond: 'bg-emerald-600', trait: 'stroke-emerald-600', texte: 'text-emerald-700' },
-  enCours: { label: 'En cours', fond: 'bg-brand-700', trait: 'stroke-brand-700', texte: 'text-brand-800' },
-  enRetard: { label: 'En retard', fond: 'bg-rose-600', trait: 'stroke-rose-600', texte: 'text-rose-700' },
+  enCours: {
+    label: 'En cours',
+    fond: 'bg-brand-700',
+    trait: 'stroke-brand-700',
+    texte: 'text-brand-800',
+  },
+  enRetard: {
+    label: 'En retard',
+    fond: 'bg-rose-600',
+    trait: 'stroke-rose-600',
+    texte: 'text-rose-700',
+  },
   annule: { label: 'Annulées', fond: 'bg-slate-300', trait: 'stroke-slate-300', texte: 'text-slate-600' },
 };
 
