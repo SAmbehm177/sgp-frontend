@@ -1,386 +1,288 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
+import type { NavigateFn } from '../../router';
+import { ArrowRight, Calendar} from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { api, toApiError } from '../../services/api';
-import { Projet, Tache, RouteParams } from '../../types/sgp';
+import { api } from '../../services/api';
+import { useApiData } from '../../hooks/useApiData';
+import { DashboardProgressCharts } from './DashboardProgressCharts';
+import { ChefDashboardSection } from './ChefDashboardSection';
+import { MemberDashboardSection } from './MemberDashboardSection';
+import { TaskPriorityBadge, TaskStatusBadge, ProjectStatusBadge } from '../common/Badge';
 import { ProgressBar } from '../common/ProgressBar';
-import { TaskStatusBadge, TaskPriorityBadge, ProjectStatusBadge } from '../common/Badge';
-import { EmptyState } from '../common/EmptyState';
-import { formatJour } from '../../utils/format';
-import { AnalyseAvancement } from './avancement/AnalyseAvancement';
-import { FolderKanban, AlertCircle } from 'lucide-react';
+import { tacheEnRetard } from '../../utils/taches';
 import { getLocalDateString } from '../../utils/date';
+import { LIBELLE_CHEF_PROJET } from '../../constants';
 
 interface DashboardViewProps {
-  onNavigate: (route: string, params?: RouteParams) => void;
+  onNavigate: NavigateFn;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const { user, personnel, isAdmin } = useAuth();
+  // Un seul appel pour tout le tableau de bord (voir GET /api/dashboard)
+  const { data, isLoading, error: loadError, reload: loadDashboardData } = useApiData(
+    () => api.getDashboard(),
+    [personnel]
+  );
 
-  // « Mode membre » : le compte a une fiche personnel, donc des tâches qui lui sont confiées.
-  // Un administrateur sans fiche voit à la place les tâches de tous les projets.
-  const modeMembre = !!personnel;
+  const projets = useMemo(() => data?.projets ?? [], [data]);
+  const allTasks = useMemo(() => data?.taches ?? [], [data]);
+  const statsByProject = useMemo(() => data?.statsParProjet ?? {}, [data]);
+  const membersByProject = useMemo(() => data?.membresParProjet ?? {}, [data]);
+  const functionNames = useMemo(
+    () => Object.fromEntries((data?.fonctions ?? []).map((fn) => [fn.id, fn.libelle])),
+    [data]
+  );
+  const unreadNotifs = isAdmin ? 0 : (data?.notificationsNonLues ?? 0);
 
-  const [projets, setProjets] = useState<Projet[]>([]);
-  const [taches, setTaches] = useState<Tache[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [tasksError, setTasksError] = useState<string | null>(null);
+  const avertissementTronque = data?.tachesTronquees ? (
+    <p role="status" className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+      Vous avez beaucoup de tâches : seules les premières (par échéance) sont affichées dans les listes.
+    </p>
+  ) : null;
 
-  const load = async () => {
-    setLoadError(null);
-    setTasksError(null);
-    setIsLoading(true);
-    const [resProjets, resTaches] = await Promise.allSettled([
-      api.getProjets(),
-      modeMembre ? api.getMyTasks() : isAdmin ? api.getUpcomingTasks() : Promise.resolve([] as Tache[]),
-    ]);
+  const managedProjects = useMemo(
+    () =>
+      isAdmin
+        ? projets
+        : projets.filter((project) => functionNames[project.ma_fonction_id ?? -1] === LIBELLE_CHEF_PROJET),
+    [projets, isAdmin, functionNames]
+  );
+  const participatingProjects = useMemo(() => {
+    const managedIds = new Set(managedProjects.map((project) => project.id));
+    return projets.filter((project) => !managedIds.has(project.id));
+  }, [projets, managedProjects]);
 
-    if (resProjets.status === 'rejected') {
-      setLoadError(toApiError(resProjets.reason).message || 'Impossible de charger les projets.');
-      setIsLoading(false);
-      return;
-    }
+  if (isLoading) {
+    return (
+      <div className="space-y-4" aria-busy="true">
+        <div className="h-24 rounded-xl border border-slate-200 bg-white animate-pulse" />
+        <div className="h-32 rounded-xl border border-slate-200 bg-white animate-pulse" />
+        <div className="h-64 rounded-xl border border-slate-200 bg-white animate-pulse" />
+      </div>
+    );
+  }
 
-    setProjets(resProjets.value);
-    setTaches(resTaches.status === 'fulfilled' ? resTaches.value : []);
-    setTasksError(resTaches.status === 'rejected'
-      ? toApiError(resTaches.reason).message || 'Impossible de charger les tâches.'
-      : null);
-    setIsLoading(false);
-  };
+  if (loadError) {
+    return (
+      <div role="alert" className="rounded-xl border border-rose-200 bg-white p-5">
+        <p className="text-sm font-semibold text-slate-900">Le tableau de bord n’a pas pu être chargé.</p>
+        <p className="mt-1 text-xs text-slate-600">{loadError}</p>
+        <button
+          type="button"
+          onClick={loadDashboardData}
+          className="mt-3 text-xs font-semibold text-brand-800 hover:text-brand-950"
+        >
+          Réessayer
+        </button>
+      </div>
+    );
+  }
 
-  useEffect(() => {
-    load();
-  }, []);
+  if (!isAdmin && managedProjects.length > 0 && personnel) {
+    return (
+      <>
+        {avertissementTronque}
+        <ChefDashboardSection
+          userName={user?.name || 'Chef de projet'}
+          personnelId={personnel.id}
+          managedProjects={managedProjects}
+          participatingProjects={participatingProjects}
+          allTasks={allTasks}
+          statsByProject={statsByProject}
+          membersByProject={membersByProject}
+          functionNames={functionNames}
+          unreadNotifs={unreadNotifs}
+          onNavigate={onNavigate}
+        />
+      </>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <>
+        {avertissementTronque}
+        <MemberDashboardSection
+          userName={user?.name || 'Collaborateur'}
+          userPoste={personnel?.poste}
+          personnelId={personnel?.id ?? null}
+          memberProjects={projets}
+          allTasks={allTasks}
+          statsByProject={statsByProject}
+          functionNames={functionNames}
+          unreadNotifs={unreadNotifs}
+          onRefreshData={loadDashboardData}
+          onNavigate={onNavigate}
+        />
+      </>
+    );
+  }
 
   const today = getLocalDateString();
-
-  // Projets
-  const actifs = projets.filter((p) => p.statut === 'en_cours');
-  const recents = projets.slice(0, 3); // l'API renvoie les plus récents d'abord
-
-  // Compteurs de tâches : les miennes (membre) ou celles de tous les projets (admin)
-  const somme = (champ: 'taches_en_cours' | 'taches_en_retard') =>
-    projets.reduce((total, p) => total + (p[champ] ?? 0), 0);
-
-  const mesEnCours = taches.filter((t) => t.statut === 'en_cours');
-  const mesEnRetard = mesEnCours.filter((t) => t.date_echeance < today);
-
-  const compteurs = modeMembre
-    ? {
-        enCours: mesEnCours.length,
-        enRetard: mesEnRetard.length,
-        terminees: taches.filter((t) => t.statut === 'termine').length,
-      }
-    : {
-        enCours: somme('taches_en_cours'),
-        enRetard: somme('taches_en_retard'),
-        terminees: projets.reduce((total, projet) => total + (projet.taches_terminees ?? 0), 0),
-      };
-
-  const aEcheanceProche = [...mesEnCours]
-    .sort((a, b) => a.date_echeance.localeCompare(b.date_echeance))
-    .slice(0, 5);
-
-  // Nouvel inscrit : pas encore de projet ni de tâche
-  const nouvelArrivant =
-    !isLoading && !loadError && !tasksError && !isAdmin && projets.length === 0 && taches.length === 0;
-
-  type Kpi = {
-    label: string;
-    value: number;
-    detail: string;
-    labelClass?: string;
-    valueClass?: string;
-    detailClass?: string;
-    onClick?: () => void;
-  };
-
-  const kpis: Kpi[] = [
-    {
-      label: 'Projets actifs',
-      value: actifs.length,
-      detail: `Sur ${projets.length} projet${projets.length > 1 ? 's' : ''} au total`,
-      onClick: () => onNavigate('projets'),
-    },
-    {
-      label: modeMembre ? 'Mes tâches en cours' : 'Tâches en cours',
-      value: compteurs.enCours,
-      detail: modeMembre ? 'À traiter et clôturer, retards inclus' : 'Retards inclus · Tous projets confondus',
-      onClick: modeMembre ? () => onNavigate('mes-taches') : undefined,
-    },
-    {
-      label: 'Tâches en retard',
-      value: compteurs.enRetard,
-      detail: 'Échéance dépassée',
-      labelClass: compteurs.enRetard > 0 ? 'text-rose-600' : undefined,
-      valueClass: compteurs.enRetard > 0 ? 'text-rose-600' : undefined,
-      detailClass: compteurs.enRetard > 0 ? 'text-rose-500' : undefined,
-      onClick: modeMembre ? () => onNavigate('mes-taches', { filter: 'overdue' }) : undefined,
-    },
-    {
-      label: modeMembre ? 'Mes tâches terminées' : 'Tâches terminées',
-      value: compteurs.terminees,
-      detail: modeMembre ? 'Clôturées' : 'Tous projets confondus',
-      valueClass: 'text-emerald-700',
-    },
-  ];
-
-  const lienSection = 'text-xs font-medium text-brand-800 hover:text-brand-950 transition-colors';
+  const ongoingTasks = allTasks
+    .filter((task) => task.statut === 'en_cours')
+    .sort((a, b) => a.date_echeance.localeCompare(b.date_echeance));
+  const overdueTasks = allTasks.filter(
+    (task) => tacheEnRetard(task, today)
+  );
+  const activeProjectsCount = projets.filter((project) => project.statut === 'en_cours').length;
+  const completedProjectsCount = projets.filter((project) => project.statut === 'termine').length;
 
   return (
     <div className="space-y-6">
-      {/* En-tête */}
+      {avertissementTronque}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Tableau de bord</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Tableau de bord</h1>
+          </div>
           <p className="text-xs text-slate-500 mt-1">
-            Bienvenue, <span className="font-semibold text-slate-700">{user?.name}</span>. Vue d'ensemble de vos
-            projets et échéances.
+            Bienvenue, <span className="font-semibold text-slate-700">{user?.name}</span>. Supervision globale des projets, des équipes et de l&apos;avancement.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          {isAdmin && (
-            <button
-              onClick={() => onNavigate('projects-new')}
-              className="px-3.5 py-2 text-xs font-medium text-white bg-brand-800 hover:bg-brand-900 rounded-lg transition-colors shadow-xs"
-            >
-              Nouveau projet
-            </button>
-          )}
-          {modeMembre && (
-            <button
-              onClick={() => onNavigate('mes-taches')}
-              className="px-3.5 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors"
-            >
-              Mes tâches
-            </button>
-          )}
-        </div>
       </div>
 
-      {loadError && (
-        <div
-          role="alert"
-          className="flex items-center justify-between gap-3 p-4 text-xs text-rose-800 bg-rose-50 border border-rose-200 rounded-xl"
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <button
+          type="button"
+          onClick={() => onNavigate('projets')}
+          className="text-left bg-white p-4 rounded-xl border border-slate-200 hover:border-slate-300 transition-colors"
         >
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-            <span>{loadError}</span>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-slate-500">Projets actifs</span>
           </div>
-          <button
-            onClick={() => {
-              setIsLoading(true);
-              load();
-            }}
-            className="px-3 py-1.5 font-medium text-rose-800 bg-white border border-rose-200 rounded-lg hover:bg-rose-100 transition-colors shrink-0"
-          >
-            Réessayer
-          </button>
-        </div>
-      )}
-
-      {tasksError && !loadError && (
-        <div
-          role="alert"
-          className="flex flex-wrap items-center justify-between gap-3 p-4 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl"
+          <p className="text-2xl font-bold font-mono tabular-nums text-slate-900 mt-2">{activeProjectsCount}</p>
+          <span className="text-[11px] text-slate-400 mt-1">Sur {projets.length} projets au total</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => onNavigate('mes-taches', { filter: 'en_cours' })}
+          className="text-left bg-white p-4 rounded-xl border border-slate-200 hover:border-slate-300 transition-colors"
         >
-          <span>{tasksError} Les indicateurs liés aux tâches peuvent être incomplets.</span>
-          <button
-            onClick={() => {
-              setIsLoading(true);
-              load();
-            }}
-            className="px-3 py-1.5 font-medium text-amber-800 bg-white border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors shrink-0"
-          >
-            Réessayer
-          </button>
-        </div>
-      )}
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-slate-500">Tâches globales en cours</span>
+          </div>
+          <p className="text-2xl font-bold font-mono tabular-nums text-slate-900 mt-2">{ongoingTasks.length}</p>
+          <span className="text-[11px] text-slate-400 mt-1">Sur {allTasks.length} tâches au total</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => onNavigate('mes-taches', { filter: 'overdue' })}
+          className="text-left bg-white p-4 rounded-xl border border-slate-200 hover:border-slate-300 transition-colors"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-slate-500">Tâches en retard</span>
+          </div>
+          <p className="text-2xl font-bold font-mono tabular-nums text-rose-600 mt-2">{overdueTasks.length}</p>
+          <span className="text-[11px] text-rose-500 mt-1">Échéance dépassée</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => onNavigate('projets')}
+          className="text-left bg-white p-4 rounded-xl border border-slate-200 hover:border-slate-300 transition-colors"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-slate-500">Projets terminés</span>
+          </div>
+          <p className="text-2xl font-bold font-mono tabular-nums text-emerald-700 mt-2">{completedProjectsCount}</p>
+          <span className="text-[11px] text-slate-400 mt-1">Sur {projets.length} projets au total</span>
+        </button>
+      </div>
 
-      {isLoading && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" aria-busy="true">
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="h-24 bg-white rounded-xl border border-slate-200 animate-pulse" />
-          ))}
-        </div>
-      )}
+      <DashboardProgressCharts
+        projets={projets}
+        allTasks={allTasks}
+        statsByProject={statsByProject}
+        personnelId={personnel?.id}
+        onNavigate={onNavigate}
+      />
 
-      {nouvelArrivant && (
-        <EmptyState
-          icon={<FolderKanban className="w-6 h-6" />}
-          title="Bienvenue sur SGP"
-          description="Vous n'appartenez encore à aucun projet. Un chef de projet ou un administrateur doit vous ajouter pour que vos projets et vos tâches apparaissent ici."
-        />
-      )}
-
-      {!isLoading && !loadError && !nouvelArrivant && (
-        <>
-          {/* Indicateurs */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {kpis.map((k) => {
-              const contenu = (
-                <>
-                  <span className={`text-xs font-medium ${k.labelClass ?? 'text-slate-500'}`}>{k.label}</span>
-                  <p className={`text-2xl font-bold font-mono tabular-nums mt-2 ${k.valueClass ?? 'text-slate-900'}`}>
-                    {k.value}
-                  </p>
-                  <p className={`text-[11px] mt-1 ${k.detailClass ?? 'text-slate-400'}`}>{k.detail}</p>
-                </>
-              );
-
-              return k.onClick ? (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <section className="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-5">
+          <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+            <div>
+              <h2 className="text-sm font-bold text-slate-900">Échéances globales prioritaires</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Tâches en cours tous projets confondus, triées par date d&apos;échéance.</p>
+            </div>
+            <button type="button" onClick={() => onNavigate('projets')} className="text-xs font-medium text-blue-600 hover:text-blue-700 inline-flex items-center gap-1">
+              Voir les projets <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <div className="mt-3 divide-y divide-slate-100">
+            {ongoingTasks.length === 0 ? (
+              <p className="py-8 text-center text-xs text-slate-400">Aucune tâche en cours actuellement.</p>
+            ) : ongoingTasks.slice(0, 5).map((task) => {
+              const isLate = task.date_echeance < today;
+              const project = projets.find((item) => item.id === task.projet_id);
+              return (
                 <button
-                  key={k.label}
-                  onClick={k.onClick}
-                  className="text-left bg-white p-4 rounded-xl border border-slate-200 hover:border-brand-200 hover:shadow-xs transition-all"
+                  type="button"
+                  key={task.id}
+                  onClick={() => onNavigate('project-detail', { id: task.projet_id, tab: 'taches' })}
+                  className="w-full text-left py-3 px-2 rounded-lg hover:bg-slate-50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2"
                 >
-                  {contenu}
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-2">
+                      <TaskPriorityBadge priority={task.priorite} />
+                      <span className="text-xs font-semibold text-slate-900 truncate">{task.titre}</span>
+                    </span>
+                    <span className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 mt-1">
+                      <span className="text-blue-600 font-medium truncate">{project?.titre}</span>
+                      {task.responsable && <span>{task.responsable.prenom} {task.responsable.nom}</span>}
+                      <span className={isLate ? 'text-rose-600 font-bold' : ''}>
+                        <Calendar className="inline w-3 h-3 mr-1" />
+                        Échéance : {new Date(`${task.date_echeance}T00:00:00`).toLocaleDateString('fr-FR')}
+                      </span>
+                    </span>
+                  </span>
+                  <TaskStatusBadge status={task.statut} isOverdue={isLate} />
                 </button>
-              ) : (
-                <div key={k.label} className="bg-white p-4 rounded-xl border border-slate-200">
-                  {contenu}
-                </div>
               );
             })}
           </div>
+        </section>
 
-          {/* Analyse graphique de l'avancement (répartition, progression, comparaison par projet) */}
-          <AnalyseAvancement projets={projets} onNavigate={onNavigate} />
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Tâches à échéance proche */}
-            <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-5 h-fit">
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-                <div>
-                  <h2 className="text-sm font-bold text-slate-900">
-                    {modeMembre ? 'Mes tâches à échéance proche' : 'Tâches à échéance proche'}
-                  </h2>
-                  <p className="text-xs text-slate-500 mt-0.5">Triées par date d'échéance la plus urgente.</p>
-                </div>
-                {modeMembre && (
-                  <button onClick={() => onNavigate('mes-taches')} className={lienSection}>
-                    Voir tout
-                  </button>
-                )}
-              </div>
-
-              <div className="mt-3 divide-y divide-slate-100">
-                {aEcheanceProche.length === 0 ? (
-                  <div className="py-8 text-center text-xs text-slate-400">
-                    Aucune tâche en cours actuellement.
-                  </div>
-                ) : (
-                  aEcheanceProche.map((tache) => {
-                    const enRetard = tache.date_echeance < today;
-
-                    return (
-                      <button
-                        key={tache.id}
-                        onClick={() => onNavigate('project-detail', { id: tache.projet_id, tab: 'taches' })}
-                        className="w-full text-left py-3 px-2 rounded-lg hover:bg-slate-50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <TaskPriorityBadge priority={tache.priorite} />
-                            <h3 className="text-xs font-semibold text-slate-900 truncate">{tache.titre}</h3>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-x-2 text-[11px] text-slate-500 mt-1">
-                            <span className="text-brand-800 font-medium truncate max-w-[200px]">
-                              {tache.projet?.titre ?? `Projet #${tache.projet_id}`}
-                            </span>
-                            {!modeMembre && tache.responsable && (
-                              <>
-                                <span aria-hidden="true">·</span>
-                                <span>
-                                  {tache.responsable.prenom} {tache.responsable.nom}
-                                </span>
-                              </>
-                            )}
-                            <span aria-hidden="true">·</span>
-                            <span className={`font-mono ${enRetard ? 'text-rose-600 font-bold' : ''}`}>
-                              Échéance : {formatJour(tache.date_echeance)}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="shrink-0">
-                          <TaskStatusBadge status={tache.statut} isOverdue={enRetard} />
-                        </div>
-                      </button>
-                    );
-                  })
-                )}
-              </div>
+        <section className="bg-white rounded-xl border border-slate-200 p-5">
+          <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+            <div>
+              <h2 className="text-sm font-bold text-slate-900">Projets récents</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Avancement et membres</p>
             </div>
-
-            {/* Colonne latérale */}
-            <div className="space-y-6">
-              {/* Projets récents */}
-              <div className="bg-white rounded-xl border border-slate-200 p-5 h-fit">
-                <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-                  <div>
-                    <h2 className="text-sm font-bold text-slate-900">Projets récents</h2>
-                    <p className="text-xs text-slate-500 mt-0.5">Avancement et chef de projet</p>
-                  </div>
-                  <button onClick={() => onNavigate('projets')} className={lienSection}>
-                    Tous
-                  </button>
-                </div>
-
-                <div className="mt-3 space-y-4">
-                  {recents.length === 0 ? (
-                    <p className="py-6 text-center text-xs text-slate-400">Aucun projet pour le moment.</p>
-                  ) : (
-                    recents.map((projet) => {
-                      const terminees = projet.taches_terminees ?? 0;
-                      const nonAnnulees = (projet.taches_en_cours ?? 0) + terminees;
-                      const chefs = projet.chefs_noms ?? [];
-                      const taux = projet.taux_avancement ?? 0;
-
-                      return (
-                        <button
-                          key={projet.id}
-                          onClick={() => onNavigate('project-detail', { id: projet.id })}
-                          className="w-full text-left p-3 rounded-lg border border-slate-100 hover:border-slate-200 hover:bg-slate-50/60 transition-colors"
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <h3 className="text-xs font-bold text-slate-900 line-clamp-1">{projet.titre}</h3>
-                            <ProjectStatusBadge status={projet.statut} />
-                          </div>
-
-                          <p className="text-[11px] text-slate-500 mt-1 line-clamp-1">
-                            {projet.description || 'Aucune description.'}
-                          </p>
-
-                          <div className="mt-3">
-                            <ProgressBar
-                              progress={taux}
-                              size="sm"
-                              colorClass={taux >= 100 ? 'bg-emerald-600' : 'bg-brand-700'}
-                            />
-                          </div>
-
-                          <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between gap-2 text-[11px] text-slate-500">
-                            <span className="truncate max-w-[150px]">
-                              {chefs.length > 0 ? `Chef : ${chefs.join(', ')}` : 'Sans chef'}
-                            </span>
-                            <span className="font-mono tabular-nums text-slate-600 shrink-0">
-                              {terminees}/{nonAnnulees} tâches
-                            </span>
-                          </div>
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            </div>
+            <button type="button" onClick={() => onNavigate('projets')} className="text-xs font-medium text-blue-600 hover:text-blue-700 inline-flex items-center gap-1">
+              Tous <ArrowRight className="w-3.5 h-3.5" />
+            </button>
           </div>
-        </>
-      )}
+          <div className="mt-3 divide-y divide-slate-100">
+            {projets.slice(0, 3).map((project) => {
+              const stats = statsByProject[project.id];
+              return (
+                <button
+                  type="button"
+                  key={project.id}
+                  onClick={() => onNavigate('project-detail', { id: project.id })}
+                  className="w-full text-left py-3.5 first:pt-1 hover:bg-slate-50/60 rounded-lg px-2 -mx-2 transition-colors"
+                >
+                  <span className="flex items-start justify-between gap-2">
+                    <span className="text-xs font-bold text-slate-900 line-clamp-1">{project.titre}</span>
+                    <ProjectStatusBadge status={project.statut} />
+                  </span>
+                  <span className="block text-[11px] text-slate-500 mt-1 line-clamp-1">{project.description}</span>
+                  {stats && (
+                    <>
+                      <ProgressBar progress={stats.taux_avancement} size="sm" />
+                      <span className="block mt-2 text-right text-[11px] font-mono tabular-nums text-slate-600">
+                        {stats.taches_terminees}/{stats.total_taches} tâches terminées
+                      </span>
+                    </>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      </div>
     </div>
   );
 };

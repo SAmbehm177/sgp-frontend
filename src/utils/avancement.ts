@@ -5,7 +5,7 @@
  *  - les compteurs que `GET /projets` renvoie déjà pour chaque projet (répartition, taux) ;
  *  - la liste des tâches, uniquement pour la courbe mensuelle (besoin des échéances).
  */
-import { Projet, Tache } from '../types/sgp';
+import type { Projet, Tache } from '../types/sgp';
 
 // --- Statuts affichés dans les graphiques ---
 
@@ -40,11 +40,11 @@ export const STATUTS: Record<CleStatut, StyleStatut> = {
 
 export interface Repartition {
   termine: number;
-  enCours: number; // en cours, échéance non dépassée
-  enRetard: number; // en cours, échéance dépassée
+  enCours: number;
+  enRetard: number;
   annule: number;
-  actives: number; // tâches non annulées : base du taux d'avancement
-  taux: number; // % de tâches actives terminées (même formule que l'API)
+  actives: number;
+  taux: number;
 }
 
 export const pourcentage = (n: number, total: number): number =>
@@ -80,11 +80,11 @@ export function repartitionGlobale(projets: Projet[]): Repartition {
 // --- Progression mensuelle ---
 
 export interface MoisAvancement {
-  cle: string; // 'AAAA-MM'
-  label: string; // 'Nov 26'
-  planifiees: number; // tâches dont l'échéance tombe ce mois
-  realisees: number; // parmi elles, celles qui sont terminées
-  tauxCumule: number; // % réalisées / planifiées depuis le premier mois
+  cle: string;
+  label: string;
+  planifiees: number;
+  realisees: number;
+  tauxCumule: number;
 }
 
 const MOIS_COURTS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sept', 'Oct', 'Nov', 'Déc'];
@@ -115,18 +115,18 @@ function moisEntre(debut: string, fin: string): string[] {
  * Regroupe les tâches par mois d'échéance. Les tâches annulées sont ignorées.
  * Le cumul est calculé sur toute la période, puis on garde les `maxMois` derniers mois.
  *
- * On part de l'échéance (toujours renseignée) plutôt que de `updated_at` : cette date change
- * à chaque modification de la tâche, elle ne dit donc pas quand elle a été clôturée.
+ * On part de l'échéance plutôt que de `updated_at` : cette date change à chaque modification
+ * de la tâche, elle ne dit donc pas quand elle a été clôturée.
  */
 export function serieMensuelle(taches: Tache[], maxMois = 12): MoisAvancement[] {
   const parMois = new Map<string, { planifiees: number; realisees: number }>();
 
-  for (const t of taches) {
-    if (t.statut === 'annule' || !t.date_echeance) continue;
-    const cle = t.date_echeance.slice(0, 7);
+  for (const tache of taches) {
+    if (tache.statut === 'annule' || !tache.date_echeance) continue;
+    const cle = tache.date_echeance.slice(0, 7);
     const mois = parMois.get(cle) ?? { planifiees: 0, realisees: 0 };
     mois.planifiees += 1;
-    if (t.statut === 'termine') mois.realisees += 1;
+    if (tache.statut === 'termine') mois.realisees += 1;
     parMois.set(cle, mois);
   }
 
@@ -151,4 +151,10 @@ export function serieMensuelle(taches: Tache[], maxMois = 12): MoisAvancement[] 
   });
 
   return serie.slice(-maxMois);
+}
+
+export function tauxAvancementTaches(taches: Tache[]): number {
+  const tachesActives = taches.filter((tache) => tache.statut !== 'annule');
+  const terminees = tachesActives.filter((tache) => tache.statut === 'termine').length;
+  return pourcentage(terminees, tachesActives.length);
 }

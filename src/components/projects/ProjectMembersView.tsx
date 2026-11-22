@@ -6,7 +6,9 @@ import { EmptyState } from '../common/EmptyState';
 import { Modal } from '../common/Modal';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { initiale } from '../../utils/format';
-import { Users, UserPlus, UserMinus, Search, AlertCircle, Check, Pencil } from 'lucide-react';
+import { Users, UserPlus, UserMinus, Search, AlertCircle, Check, Pencil, ArrowLeftRight } from 'lucide-react';
+import { LIBELLE_CHEF_PROJET } from '../../constants';
+import { ChangeChefModal } from './members/ChangeChefModal';
 
 interface ProjectMembersViewProps {
   projet: Projet;
@@ -17,8 +19,8 @@ interface ProjectMembersViewProps {
   onChanged: () => void;
 }
 
-const estChef = (m: MembreProjet) => m.fonction?.libelle === 'Chef de projet';
-const LIBELLE_CHEF = 'Chef de projet';
+const estChef = (m: MembreProjet) => m.fonction?.libelle === LIBELLE_CHEF_PROJET;
+const LIBELLE_CHEF = LIBELLE_CHEF_PROJET;
 
 export const ProjectMembersView: React.FC<ProjectMembersViewProps> = ({
   projet,
@@ -49,6 +51,9 @@ export const ProjectMembersView: React.FC<ProjectMembersViewProps> = ({
   const [nouveauChefId, setNouveauChefId] = useState<number | ''>('');
   const [removeError, setRemoveError] = useState<string | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
+
+  // Changement de chef de projet, sans retirer l'ancien du projet (administrateur)
+  const [chefAChanger, setChefAChanger] = useState<MembreProjet | null>(null);
 
   // Modification de la fonction d'un membre (administrateur)
   const [membreAFonctionModifier, setMembreAFonctionModifier] = useState<MembreProjet | null>(null);
@@ -284,6 +289,16 @@ export const ProjectMembersView: React.FC<ProjectMembersViewProps> = ({
                   <UserMinus className="w-4 h-4" />
                 </button>
               )}
+              {isAdmin && estChef(m) && (
+                <button
+                  onClick={() => setChefAChanger(m)}
+                  className="p-1.5 text-slate-400 hover:text-brand-800 hover:bg-brand-50 rounded-lg transition-colors"
+                  title="Changer de chef de projet"
+                  aria-label={`Changer le chef de projet (actuellement ${m.personnel?.prenom} ${m.personnel?.nom})`}
+                >
+                  <ArrowLeftRight className="w-4 h-4" />
+                </button>
+              )}
               {isAdmin && (
                 <button
                   onClick={() => {
@@ -343,6 +358,25 @@ export const ProjectMembersView: React.FC<ProjectMembersViewProps> = ({
               ))}
             </select>
           </div>
+
+          {membreAFonctionModifier && estChef(membreAFonctionModifier) && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 p-3 text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-xl">
+              <span>
+                Un projet doit toujours avoir un chef. Pour remplacer {membreAFonctionModifier.personnel?.prenom}{' '}
+                {membreAFonctionModifier.personnel?.nom}, désignez son successeur.
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setChefAChanger(membreAFonctionModifier);
+                  setMembreAFonctionModifier(null);
+                }}
+                className="font-semibold text-brand-800 underline underline-offset-2 hover:text-brand-950"
+              >
+                Changer de chef de projet
+              </button>
+            </div>
+          )}
 
           <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
             <button
@@ -494,6 +528,18 @@ export const ProjectMembersView: React.FC<ProjectMembersViewProps> = ({
           </div>
         </form>
       </Modal>
+
+      {/* Changer de chef de projet */}
+      {chefAChanger && (
+        <ChangeChefModal
+          projet={projet}
+          ancienChef={chefAChanger}
+          membres={membres}
+          fonctions={fonctions}
+          onClose={() => setChefAChanger(null)}
+          onChanged={onChanged}
+        />
+      )}
 
       {/* Retirer un membre */}
       {retraitChef ? (

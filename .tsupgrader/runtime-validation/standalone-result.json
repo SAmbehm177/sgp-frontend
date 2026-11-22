@@ -1,0 +1,124 @@
+{
+  "planHash": "0d33536b7a7014a2e33238fa4e153452cfa809e485809990c698f6def764c523",
+  "phase": "standalone",
+  "recordedAtUtc": "2026-11-18T13:57:38.7041504Z",
+  "retryCount": 0,
+  "resetBaseline": false,
+  "complete": true,
+  "result": {
+    "setupSucceeded": true,
+    "setupDurationMs": 0,
+    "setupFailureOutput": null,
+    "assertions": [
+      {
+        "name": "typescript-no-emit",
+        "kind": "process",
+        "verificationMethod": "exit-code",
+        "passed": true,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": 0,
+        "outputSample": "\r\n\u003E sgp-front@0.0.0 lint\r\n\u003E tsc --noEmit\r\n\r\n",
+        "durationMs": 2871
+      },
+      {
+        "name": "production-build",
+        "kind": "process",
+        "verificationMethod": "exit-code",
+        "passed": true,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": 0,
+        "outputSample": "\r\n\u003E sgp-front@0.0.0 build\r\n\u003E vite build\r\n\r\n\u001B[36mvite v8.3.4 \u001B[32mbuilding client environment for production...\u001B[36m\u001B[39m\r\ntransforming...\r\n\u2713 1700 modules transformed.\r\nrendering chunks...\r\ncomputing gzip size...\r\ndist/index.html                   1.37 kB \u2502 gzip:   0.61 kB\r\ndist/assets/index-Ceycuond.css   51.80 kB \u2502 gzip:   9.69 kB\r\ndist/assets/index-CJCEn0nR.js   471.12 kB \u2502 gzip: 120.65 kB\r\n\r\n\u001B[32m\u2713 built in 802ms\u001B[39m\r\n",
+        "durationMs": 2364
+      },
+      {
+        "name": "frontend-serves-home",
+        "kind": "http-probe",
+        "verificationMethod": "http-status",
+        "passed": true,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": null,
+        "outputSample": "HTTP 200\n\u003C!doctype html\u003E\n\u003Chtml lang=\u0022fr\u0022\u003E\n  \u003Chead\u003E\n    \u003Cscript type=\u0022module\u0022\u003Eimport { injectIntoGlobalHook } from \u0022/@react-refresh\u0022;\ninjectIntoGlobalHook(window);\nwindow.$RefreshReg$ = () =\u003E {};\nwindow.$RefreshSig$ = () =\u003E (type) =\u003E type;\u003C/script\u003E\n\n    \u003Cscript type=\u0022module\u0022 src=\u0022/@vite/client\u0022\u003E\u003C/script\u003E\n\n    \u003Cmeta charset=\u0022UTF-8\u0022 /\u003E\n    \u003Cmeta name=\u0022viewport\u0022 content=\u0022width=device-width, initial-scale=1.0, viewport-fit=cover\u0022 /\u003E\n    \u003Ctitle\u003ESGP - Syst\u00E8me de Gestion de Projet\u003C/title\u003E\n    \u003Cmeta name=\u0022description\u0022 content=\u0022Application web responsive de gestion de projets, membres, t\u00E2ches et notifications avec contr\u00F4le des r\u00F4les et int\u00E9gration API Laravel.\u0022 /\u003E\n    \u003Cmeta property=\u0022og:title\u0022 content=\u0022SGP - Syst\u00E8me de Gestion de Projet\u0022 /\u003E\n    \u003Cmeta property=\u0022og:description\u0022 content=\u0022Application web responsive de gestion de projets, membres, t\u00E2ches et notifications avec contr\u00F4le des r\u00F4les et int\u00E9gration API Laravel.\u0022 /\u003E\n    \u003Cmeta property=\u0022og:type\u0022 content=\u0022website\u0022 /\u003E\n    \u003Cmeta name=\u0022twitter:card\u0022 content=\u0022summary_large_image\u0022 /\u003E\n    \u003Clink rel=\u0022preconnect\u0022 href=\u0022https://fonts.googleapis.com\u0022 /\u003E\n    \u003Clink rel=\u0022preconnect\u0022 href=\u0022https://fonts.gstatic.com\u0022 crossorigin\u003E\n    \u003Clink href=\u0022https://fonts.googleapis.com/css2?family=Bricolage\u002BGrotesque:opsz,wght@12..96,200..800\u0026family=Noto\u002BSerif:ital,wght@1,100..900\u0026display=swap\u0022 rel=\u0022stylesheet\u0022 /\u003E\n  \u003C/head\u003E\n  \u003Cbody class=\u0022bg-slate-50 text-slate-900 antialiased font-sans\u0022\u003E\n    \u003Cdiv id=\u0022root\u0022\u003E\u003C/div\u003E\n    \u003Cscript type=\u0022module\u0022 src=\u0022/src/main.tsx\u0022\u003E\u003C/script\u003E\n  \u003C/body\u003E\n\u003C/html\u003E\n\n--- server output ---\n\r\n\u003E sgp-front@0.0.0 dev\r\n\u003E vite --port=3000 --host 127.0.0.1\r\n\r\n\r\n  \u001B[32m\u001B[1mVITE\u001B[22m v8.3.4\u001B[39m  \u001B[2mready in \u001B[0m\u001B[1m873\u001B[22m\u001B[2m\u001B[0m ms\u001B[22m\r\n\r\n  \u001B[32m\u279C\u001B[39m  \u001B[1mLocal\u001B[22m:   \u001B[36mhttp://127.0.0.1:\u001B[1m3000\u001B[22m/\u001B[39m\r\n",
+        "durationMs": 2085
+      },
+      {
+        "name": "tests-pass",
+        "kind": "process",
+        "verificationMethod": "test-results",
+        "passed": true,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": 0,
+        "outputSample": "\r\n\u003E sgp-front@0.0.0 test\r\n\u003E vitest run\r\n\r\n\r\n RUN  v5.1.0 C:/Users/ambehm/Documents/stage/sgp/sgp-frontend\r\n\r\n\r\n Test Files  2 passed (2)\r\n      Tests  8 passed (8)\r\n   Start at  13:57:38\r\n   Duration  400ms (import 34%, tests 31%, transform 22%, worker 12%)\r\n\r\n",
+        "durationMs": 2417,
+        "testResults": {
+          "testFramework": "vitest",
+          "runnerDetectedFrom": "package_json",
+          "testsTotal": 8,
+          "testsPassed": 8,
+          "testsFailed": 0,
+          "testsSkipped": 0,
+          "parseFailed": false
+        }
+      }
+    ],
+    "executions": [
+      {
+        "source": "typescript-no-emit",
+        "resolvedExecutable": "D:\\Program Files\\nodejs\\npm.CMD",
+        "args": [
+          "run",
+          "lint"
+        ],
+        "cwd": "C:\\Users\\ambehm\\Documents\\stage\\sgp\\sgp-frontend",
+        "env": {},
+        "prependPath": [],
+        "platform": "win32"
+      },
+      {
+        "source": "production-build",
+        "resolvedExecutable": "D:\\Program Files\\nodejs\\npm.CMD",
+        "args": [
+          "run",
+          "build"
+        ],
+        "cwd": "C:\\Users\\ambehm\\Documents\\stage\\sgp\\sgp-frontend",
+        "env": {},
+        "prependPath": [],
+        "platform": "win32"
+      },
+      {
+        "source": "frontend-serves-home",
+        "resolvedExecutable": "D:\\Program Files\\nodejs\\npm.CMD",
+        "args": [
+          "run",
+          "dev",
+          "--",
+          "--host",
+          "127.0.0.1"
+        ],
+        "cwd": "C:\\Users\\ambehm\\Documents\\stage\\sgp\\sgp-frontend",
+        "env": {},
+        "prependPath": [],
+        "platform": "win32"
+      },
+      {
+        "source": "tests-pass",
+        "resolvedExecutable": "D:\\Program Files\\nodejs\\npm.CMD",
+        "args": [
+          "test"
+        ],
+        "cwd": "C:\\Users\\ambehm\\Documents\\stage\\sgp\\sgp-frontend",
+        "env": {},
+        "prependPath": [],
+        "platform": "win32"
+      }
+    ]
+  }
+}

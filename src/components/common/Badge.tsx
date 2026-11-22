@@ -1,11 +1,6 @@
 import React from 'react';
 import { TaskStatus, TaskPriority, ProjectStatus, MemberStatus } from '../../types/sgp';
 
-interface BadgeProps {
-  children?: React.ReactNode;
-  className?: string;
-}
-
 export const ProjectStatusBadge: React.FC<{ status: ProjectStatus; className?: string }> = ({
   status,
   className = '',
@@ -45,14 +40,19 @@ export const TaskStatusBadge: React.FC<{
   isOverdue?: boolean;
   className?: string;
 }> = ({ status, isOverdue = false, className = '' }) => {
-  if (isOverdue && status !== 'termine') {
+  if (isOverdue && status === 'en_cours') {
     return (
-      <span
-        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-semibold rounded-md border bg-rose-50 text-rose-800 border-rose-200 ${className} whitespace-nowrap`}
-        title="Date d'échéance dépassée"
-      >
-        <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-pulse" aria-hidden="true" />
-        En retard
+      <span className={`inline-flex items-center gap-1 whitespace-nowrap ${className}`}>
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-medium rounded-md border bg-amber-50/80 text-amber-800 border-amber-200/70">
+          En cours
+        </span>
+        <span
+          className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-semibold rounded-md border bg-rose-50 text-rose-800 border-rose-200"
+          title="Date d'échéance dépassée"
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-pulse" aria-hidden="true" />
+          En retard
+        </span>
       </span>
     );
   }

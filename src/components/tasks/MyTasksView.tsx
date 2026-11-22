@@ -1,12 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import type { NavigateFn } from '../../router';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { api, toApiError } from '../../services/api';
-import { Tache, TaskStatus, RouteParams } from '../../types/sgp';
+import { useApiData } from '../../hooks/useApiData';
+import { Tache, TaskStatus } from '../../types/sgp';
 import { TaskStatusBadge, TaskPriorityBadge } from '../common/Badge';
 import { EmptyState } from '../common/EmptyState';
 import { formatJour } from '../../utils/format';
 import { getLocalDateString } from '../../utils/date';
+import { tacheEnRetard } from '../../utils/taches';
 import {
   CheckSquare,
   Search,
@@ -18,20 +21,16 @@ import {
 } from 'lucide-react';
 
 interface MyTasksViewProps {
-  onNavigate: (route: string, params?: RouteParams) => void;
+  onNavigate: NavigateFn;
   initialFilter?: string;
 }
 
 type Vue = 'toutes' | 'en_cours' | 'retard' | 'terminees';
 
 export const MyTasksView: React.FC<MyTasksViewProps> = ({ onNavigate, initialFilter }) => {
-  const { user, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
   const toast = useToast();
 
-  const [taches, setTaches] = useState<Tache[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [sansFiche, setSansFiche] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
 
   const [vue, setVue] = useState<Vue>(
@@ -46,31 +45,25 @@ export const MyTasksView: React.FC<MyTasksViewProps> = ({ onNavigate, initialFil
   const [search, setSearch] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('all');
 
-  const loadTaches = async () => {
-    setLoadError(null);
+  const {
+    data,
+    isLoading,
+    error: loadError,
+    reload: loadTaches,
+  } = useApiData(async () => {
     try {
-      setTaches(await api.getMyTasks());
-      setSansFiche(false);
+      return { taches: await api.getMyTasks(), sansFiche: false };
     } catch (caught) {
-      const err = toApiError(caught);
       // 404 : le compte n'a pas de fiche personnel (cas d'un administrateur)
-      if (err?.status === 404) {
-        setSansFiche(true);
-        setTaches([]);
-      } else {
-        setLoadError(err?.message || 'Impossible de charger vos tâches.');
-      }
-    } finally {
-      setIsLoading(false);
+      if (toApiError(caught).status === 404) return { taches: [] as Tache[], sansFiche: true };
+      throw caught;
     }
-  };
-
-  useEffect(() => {
-    loadTaches();
-  }, []);
+  });
+  const taches = data?.taches ?? [];
+  const sansFiche = data?.sansFiche ?? false;
 
   const today = getLocalDateString();
-  const estEnRetard = (t: Tache) => t.statut === 'en_cours' && t.date_echeance < today;
+  const estEnRetard = (t: Tache) => tacheEnRetard(t, today);
 
   const compteurs = {
     toutes: taches.length,
@@ -92,7 +85,7 @@ export const MyTasksView: React.FC<MyTasksViewProps> = ({ onNavigate, initialFil
       await api.updateTaskStatus(t.id, statut);
       const libelle = statut === 'en_cours' ? 'En cours' : statut === 'termine' ? 'Terminée' : 'Annulée';
       toast.success('Statut mis à jour', `La tâche « ${t.titre} » est maintenant « ${libelle} ».`);
-      await loadTaches();
+      loadTaches();
     } catch (caught) {
       const err = toApiError(caught);
       toast.error('Action refusée', err?.message || 'Impossible de changer le statut.');
@@ -144,10 +137,7 @@ export const MyTasksView: React.FC<MyTasksViewProps> = ({ onNavigate, initialFil
             <span>{loadError}</span>
           </div>
           <button
-            onClick={() => {
-              setIsLoading(true);
-              loadTaches();
-            }}
+            onClick={loadTaches}
             className="px-3 py-1.5 font-medium text-rose-800 bg-white border border-rose-200 rounded-lg hover:bg-rose-100 transition-colors shrink-0"
           >
             Réessayer

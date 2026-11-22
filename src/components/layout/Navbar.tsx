@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
+import type { NavigateFn } from '../../router';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationsContext';
-import { NotificationItem, RouteParams } from '../../types/sgp';
+import { NotificationItem } from '../../types/sgp';
 import { tempsRelatif, titreNotification, ongletNotification } from '../../utils/format';
 import { Menu, ChevronDown, LogOut, User as UserIcon, Bell } from 'lucide-react';
 
 interface NavbarProps {
   onToggleSidebar: () => void;
   currentRoute: string;
-  onNavigate: (route: string, params?: RouteParams) => void;
+  onNavigate: NavigateFn;
   breadcrumbs?: Array<{ label: string; onClick?: () => void }>;
 }
 

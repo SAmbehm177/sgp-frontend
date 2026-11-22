@@ -14,7 +14,6 @@ interface ProjectDiscussionViewProps {
   membres: MembreProjet[]; // équipe active : sert à choisir un destinataire facultatif
 }
 
-const INTERVALLE_SONDAGE = 8000; // vérifie les nouveaux messages toutes les 8 s
 const LONGUEUR_MAX = 2000; // même limite que le backend
 
 export const ProjectDiscussionView: React.FC<ProjectDiscussionViewProps> = ({ projetId, canManage, membres }) => {
@@ -82,36 +81,60 @@ export const ProjectDiscussionView: React.FC<ProjectDiscussionViewProps> = ({ pr
     dernierId.current = messages.length > 0 ? messages[messages.length - 1].id : 0;
   }, [messages]);
 
-  // Sondage : récupère uniquement les nouveaux messages (onglet masqué = on ne demande rien)
+  // Flux SSE : les changements arrivent dès qu'ils sont enregistrés, avec reconnexion automatique.
   useEffect(() => {
     if (isLoading || loadError) return;
 
-    const timer = setInterval(async () => {
-      if (document.hidden) return;
+    let stop = false;
+    let controller: AbortController | null = null;
+    let reconnectTimer: number | undefined;
+
+    const appliquerFlux = (raw: {
+      messages: Message[];
+      suppressions: { id: number; messageId: number }[];
+      dernierIdSuppression: number;
+    }) => {
+      const nouveaux = raw.messages;
+      const suppressions = raw.suppressions;
+      dernierId.current = Math.max(dernierId.current, ...nouveaux.map((m) => m.id));
+      derniereSuppressionId.current = Math.max(
+        derniereSuppressionId.current,
+        raw.dernierIdSuppression
+      );
+      if (nouveaux.length === 0 && suppressions.length === 0) return;
+      if (nouveaux.length > 0) refreshNotifications();
+      setMessages((prev) => {
+        const supprimes = new Set(suppressions.map((s) => s.messageId));
+        const conserves = prev.filter((m) => !supprimes.has(m.id));
+        const connus = new Set(conserves.map((m) => m.id));
+        return [...conserves, ...nouveaux.filter((m) => !supprimes.has(m.id) && !connus.has(m.id))];
+      });
+    };
+
+    const ouvrirFlux = async () => {
+      if (stop) return;
+      controller = new AbortController();
       try {
-        const res = await api.getMessages(projetId, {
+        await api.streamMessages(projetId, {
           apresId: dernierId.current,
           apresSuppressionId: derniereSuppressionId.current,
-        });
-        dernierId.current = Math.max(dernierId.current, ...res.messages.map((m) => m.id));
-        derniereSuppressionId.current = Math.max(
-          derniereSuppressionId.current,
-          res.dernierIdSuppression
-        );
-        if (res.messages.length === 0 && res.suppressions.length === 0) return;
-        if (res.messages.length > 0) refreshNotifications();
-        setMessages((prev) => {
-          const supprimes = new Set(res.suppressions.map((s) => s.messageId));
-          const conserves = prev.filter((m) => !supprimes.has(m.id));
-          const connus = new Set(conserves.map((m) => m.id));
-          return [...conserves, ...res.messages.filter((m) => !supprimes.has(m.id) && !connus.has(m.id))];
-        });
+        }, appliquerFlux, controller.signal);
       } catch (caught) {
-        console.error('[SGP] Impossible de synchroniser les messages.', caught);
+        if (!stop && !(caught instanceof DOMException && caught.name === 'AbortError')) {
+          console.error('[SGP] Impossible de maintenir la synchronisation des messages.', caught);
+        }
       }
-    }, INTERVALLE_SONDAGE);
 
-    return () => clearInterval(timer);
+      if (!stop) reconnectTimer = window.setTimeout(ouvrirFlux, 1000);
+    };
+
+    ouvrirFlux();
+
+    return () => {
+      stop = true;
+      controller?.abort();
+      if (reconnectTimer) window.clearTimeout(reconnectTimer);
+    };
   }, [projetId, isLoading, loadError, refreshNotifications]);
 
   // Descend en bas du fil, sauf si l'utilisateur est remonté lire d'anciens messages
@@ -206,7 +229,7 @@ export const ProjectDiscussionView: React.FC<ProjectDiscussionViewProps> = ({ pr
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 flex flex-col">
-      <div ref={listRef} onScroll={handleScroll} className="h-[20rem] overflow-y-auto p-4 space-y-4">
+      <div ref={listRef} onScroll={handleScroll} className="h-20rem overflow-y-auto p-4 space-y-4">
         {aPlusAncien && (
           <div className="text-center">
             <button
@@ -259,7 +282,7 @@ export const ProjectDiscussionView: React.FC<ProjectDiscussionViewProps> = ({ pr
                   )}
                 </div>
                 <p
-                  className={`px-3 py-2 rounded-xl text-xs leading-relaxed whitespace-pre-wrap break-words ${
+                  className={`px-3 py-2 rounded-xl text-xs leading-relaxed whitespace-pre-wrap wrap-break-word ${
                     moi ? 'bg-brand-800 text-white' : 'bg-slate-100 text-slate-800'
                   }`}
                 >
@@ -277,7 +300,7 @@ export const ProjectDiscussionView: React.FC<ProjectDiscussionViewProps> = ({ pr
             value={destinataireId ?? ''}
             onChange={(e) => setDestinataireId(e.target.value ? Number(e.target.value) : null)}
             aria-label="Destinataire du message"
-            className="max-w-[9rem] px-2 py-2 text-xs border border-slate-300 rounded-lg bg-white focus:outline-hidden focus:border-brand-800"
+            className="max-w-9rem px-2 py-2 text-xs border border-slate-300 rounded-lg bg-white focus:outline-hidden focus:border-brand-800"
           >
             <option value="">À tout le projet</option>
             {destinataires.map((d) => (

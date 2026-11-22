@@ -3,7 +3,7 @@
  * Application React & Tailwind CSS responsive
  */
 
-import React, { useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { NotificationsProvider } from './context/NotificationsContext';
@@ -18,125 +18,73 @@ import { ProfileView } from './components/profile/ProfileView';
 import { NotificationsView } from './components/notifications/NotificationsView';
 import { LoginView } from './components/auth/LoginView';
 import { ForcePasswordChangeView } from './components/auth/ForcePasswordChangeView';
-import { ProjectTab, RouteParams } from './types/sgp';
+import { NavigateFn, Route, parseHash, toHash } from './router';
 
-const ONGLETS_PROJET: ProjectTab[] = ['vue-ensemble', 'taches', 'membres', 'discussion', 'statistiques'];
+interface Breadcrumb {
+  label: string;
+  onClick?: () => void;
+}
+
+// L'URL (hash) est la seule source de vérité de la navigation : pas d'état dupliqué à garder synchronisé
+function subscribeHash(onChange: () => void) {
+  window.addEventListener('hashchange', onChange);
+  return () => window.removeEventListener('hashchange', onChange);
+}
+
+function useHashRoute(): Route {
+  const hash = useSyncExternalStore(subscribeHash, () => window.location.hash);
+  return useMemo(() => parseHash(hash), [hash]);
+}
+
+const LIBELLES_FIXES: Partial<Record<Route['name'], string>> = {
+  dashboard: 'Tableau de bord',
+  projets: 'Projets',
+  'mes-taches': 'Mes tâches',
+  notifications: 'Notifications',
+  administration: 'Administration',
+  profile: 'Mon profil',
+};
+
+function construireFilAriane(
+  route: Route,
+  projetTitre: { id: number; titre: string } | null,
+  navigate: NavigateFn
+): Breadcrumb[] {
+  const versProjets = () => navigate('projets');
+
+  if (route.name === 'projects-new') {
+    return [{ label: 'Projets', onClick: versProjets }, { label: 'Nouveau projet' }];
+  }
+  if (route.name === 'project-detail') {
+    const titre = projetTitre && projetTitre.id === route.params.id ? projetTitre.titre : 'Projet';
+    return [{ label: 'Projets', onClick: versProjets }, { label: titre }];
+  }
+  const label = LIBELLES_FIXES[route.name];
+  return label ? [{ label }] : [];
+}
 
 function AppContent() {
   const { user, isAuthenticated, isLoading, isAdmin } = useAuth();
-
-  // Navigation state
-  const [currentRoute, setCurrentRoute] = useState<string>('dashboard');
-  const [routeParams, setRouteParams] = useState<RouteParams>({});
+  const route = useHashRoute();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [projetTitre, setProjetTitre] = useState<{ id: number; titre: string } | null>(null);
 
-  // Synchronisation avec l'URL Hash pour le support des liens profonds
-  useEffect(() => {
-    const parseHash = () => {
-      const hash = window.location.hash.replace(/^#\/?/, '');
-      if (!hash) {
-        setCurrentRoute('dashboard');
-        return;
-      }
-
-      const parts = hash.split('/');
-      const base = parts[0];
-
-      if (base === 'connexion') {
-        setCurrentRoute('connexion');
-      } else if (base === 'projets') {
-        if (parts[1] === 'nouveau') {
-          setCurrentRoute('projects-new');
-        } else if (parts[1]) {
-          setCurrentRoute('project-detail');
-          setRouteParams({ id: Number(parts[1]), tab: ONGLETS_PROJET.find((o) => o === parts[2]) ?? 'vue-ensemble' });
-        } else {
-          setCurrentRoute('projets');
-        }
-      } else if (base === 'mes-taches') {
-        setCurrentRoute('mes-taches');
-      } else if (base === 'notifications') {
-        setCurrentRoute('notifications');
-      } else if (base === 'administration') {
-        setCurrentRoute('administration');
-      } else if (base === 'profil') {
-        setCurrentRoute('profile');
-      } else {
-        setCurrentRoute('dashboard');
-      }
-    };
-
-    parseHash();
-    window.addEventListener('hashchange', parseHash);
-    return () => window.removeEventListener('hashchange', parseHash);
+  const navigate = useCallback<NavigateFn>((name, params = {}) => {
+    window.location.hash = toHash(name, params);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  // Garde de session : sans session -> #/connexion ; avec session sur #/connexion -> tableau de bord
+  // Gardes de navigation : session requise, puis droits administrateur pour la création de projet
   useEffect(() => {
     if (isLoading) return;
     if (!isAuthenticated) {
-      const pagesPubliques = ['#/connexion'];
-      if (!pagesPubliques.includes(window.location.hash)) window.location.hash = '#/connexion';
-    } else if (currentRoute === 'connexion') {
+      if (route.name !== 'connexion') navigate('connexion');
+    } else if (route.name === 'connexion') {
       navigate('dashboard');
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, isLoading, currentRoute]);
-
-  const navigate = (route: string, params: RouteParams = {}) => {
-    setCurrentRoute(route);
-    setRouteParams(params);
-
-    // Update hash
-    if (route === 'dashboard') window.location.hash = '#/tableau-de-bord';
-    else if (route === 'projets') window.location.hash = '#/projets';
-    else if (route === 'projects-new') window.location.hash = '#/projets/nouveau';
-    else if (route === 'project-detail')
-      window.location.hash = `#/projets/${params.id}${params.tab ? `/${params.tab}` : ''}`;
-    else if (route === 'mes-taches') window.location.hash = '#/mes-taches';
-    else if (route === 'notifications') window.location.hash = '#/notifications';
-    else if (route === 'administration') window.location.hash = '#/administration';
-    else if (route === 'profile') window.location.hash = '#/profil';
-    else if (route === 'connexion') window.location.hash = '#/connexion';
-
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    if (!isLoading && isAuthenticated && currentRoute === 'projects-new' && !isAdmin) {
+    } else if (route.name === 'projects-new' && !isAdmin) {
       navigate('projets');
     }
-  }, [currentRoute, isAdmin, isAuthenticated, isLoading]);
-
-  // Breadcrumbs calculés pour le Top Bar Contract
-  const getBreadcrumbs = () => {
-    const crumbs: Array<{ label: string; onClick?: () => void }> = [];
-
-    if (currentRoute === 'dashboard') {
-      crumbs.push({ label: 'Tableau de bord' });
-    } else if (currentRoute === 'projets') {
-      crumbs.push({ label: 'Projets' });
-    } else if (currentRoute === 'projects-new') {
-      crumbs.push({ label: 'Projets', onClick: () => navigate('projets') });
-      crumbs.push({ label: 'Nouveau projet' });
-    } else if (currentRoute === 'project-detail') {
-      crumbs.push({ label: 'Projets', onClick: () => navigate('projets') });
-      crumbs.push({
-        label: projetTitre && projetTitre.id === routeParams.id ? projetTitre.titre : 'Projet',
-      });
-    } else if (currentRoute === 'mes-taches') {
-      crumbs.push({ label: 'Mes tâches' });
-    } else if (currentRoute === 'notifications') {
-      crumbs.push({ label: 'Notifications' });
-    } else if (currentRoute === 'administration') {
-      crumbs.push({ label: 'Administration' });
-    } else if (currentRoute === 'profile') {
-      crumbs.push({ label: 'Mon profil' });
-    }
-
-    return crumbs;
-  };
+  }, [isAuthenticated, isLoading, isAdmin, route.name, navigate]);
 
   if (isLoading) {
     return (
@@ -147,7 +95,6 @@ function AppContent() {
     );
   }
 
-  // Not authenticated -> show Login
   if (!isAuthenticated) {
     return <LoginView onSuccess={() => navigate('dashboard')} />;
   }
@@ -157,54 +104,43 @@ function AppContent() {
     return <ForcePasswordChangeView />;
   }
 
+  const { name, params } = route;
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex">
-      {/* Sidebar navigation */}
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
-        currentRoute={currentRoute}
-        onNavigate={(route) => navigate(route)}
+        currentRoute={name}
+        onNavigate={navigate}
       />
 
-      {/* Main Viewport Content */}
       <div className="flex-1 flex flex-col min-w-0 lg:pl-50">
-        {/* Top Navbar */}
         <Navbar
-          onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-          currentRoute={currentRoute}
-          onNavigate={(route, params) => navigate(route, params)}
-          breadcrumbs={getBreadcrumbs()}
+          onToggleSidebar={() => setSidebarOpen((ouvert) => !ouvert)}
+          currentRoute={name}
+          onNavigate={navigate}
+          breadcrumbs={construireFilAriane(route, projetTitre, navigate)}
         />
 
-        {/* Page Content Viewport */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
-          {currentRoute === 'dashboard' && <DashboardView onNavigate={navigate} />}
-
-          {currentRoute === 'projets' && <ProjectsListView onNavigate={navigate} />}
-
-          {currentRoute === 'projects-new' && isAdmin && (
-            <ProjectsListView onNavigate={navigate} openCreateImmediately={true} />
+          {name === 'dashboard' && <DashboardView onNavigate={navigate} />}
+          {name === 'projets' && <ProjectsListView onNavigate={navigate} />}
+          {name === 'projects-new' && isAdmin && (
+            <ProjectsListView onNavigate={navigate} openCreateImmediately />
           )}
-
-          {currentRoute === 'project-detail' && (
+          {name === 'project-detail' && params.id !== undefined && (
             <ProjectDetailView
-              projetId={routeParams.id ?? 0}
-              initialTab={routeParams.tab ?? 'vue-ensemble'}
+              projetId={params.id}
+              initialTab={params.tab ?? 'vue-ensemble'}
               onNavigate={navigate}
               onTitreChange={(id, titre) => setProjetTitre({ id, titre })}
             />
           )}
-
-          {currentRoute === 'mes-taches' && (
-            <MyTasksView onNavigate={navigate} initialFilter={routeParams.filter} />
-          )}
-
-          {currentRoute === 'notifications' && <NotificationsView onNavigate={navigate} />}
-
-          {currentRoute === 'administration' && <AdminView />}
-
-          {currentRoute === 'profile' && <ProfileView onNavigate={navigate} />}
+          {name === 'mes-taches' && <MyTasksView onNavigate={navigate} initialFilter={params.filter} />}
+          {name === 'notifications' && <NotificationsView onNavigate={navigate} />}
+          {name === 'administration' && <AdminView />}
+          {name === 'profile' && <ProfileView onNavigate={navigate} />}
         </main>
       </div>
     </div>

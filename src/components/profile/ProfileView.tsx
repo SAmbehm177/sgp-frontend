@@ -1,20 +1,22 @@
 import React, { useState, useEffect } from 'react';
+import type { NavigateFn } from '../../router';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { api, toApiError } from '../../services/api';
-import { Projet, Fonction, RouteParams } from '../../types/sgp';
+import { Projet, Fonction } from '../../types/sgp';
 import { ProjectStatusBadge } from '../common/Badge';
 import { EmptyState } from '../common/EmptyState';
 import { PasswordInput } from '../common/PasswordInput';
 import { formatJour, initiale } from '../../utils/format';
 import { AlertCircle } from 'lucide-react';
+import { LIBELLE_CHEF_PROJET } from '../../constants';
 
 interface ProfileViewProps {
-  onNavigate: (route: string, params?: RouteParams) => void;
+  onNavigate: NavigateFn;
 }
 
 export const ProfileView: React.FC<ProfileViewProps> = ({ onNavigate }) => {
-  const { user, personnel, isAdmin, logout } = useAuth();
+  const { user, personnel, isAdmin } = useAuth();
   const toast = useToast();
 
   // Changement de mot de passe
@@ -165,7 +167,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onNavigate }) => {
           <div className="divide-y divide-slate-100">
             {projets.map((p) => {
               const fonction = fonctions.find((f) => f.id === p.ma_fonction_id)?.libelle ?? 'Membre';
-              const estChef = fonction === 'Chef de projet';
+              const estChef = fonction === LIBELLE_CHEF_PROJET;
 
               return (
                 <button

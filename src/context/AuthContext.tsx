@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { User, Personnel } from '../types/sgp';
 import { api, toApiError } from '../services/api';
 import { session } from '../services/session';
@@ -64,14 +64,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Lève l'erreur API (ApiError) : c'est la page de connexion qui affiche le message.
   // Pas de isLoading global ici, sinon App démonte LoginView et efface l'erreur affichée.
-  const login = async (email: string, password: string): Promise<void> => {
-    const res = await api.login(email, password);
-    setUser(res.user);
-    setPersonnel(res.personnel);
-    toast.success('Connexion réussie', `Bienvenue, ${res.user.name} !`);
-  };
+  const login = useCallback(
+    async (email: string, password: string): Promise<void> => {
+      const res = await api.login(email, password);
+      setUser(res.user);
+      setPersonnel(res.personnel);
+      toast.success('Connexion réussie', `Bienvenue, ${res.user.name} !`);
+    },
+    [toast]
+  );
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await api.logout();
     } catch (caught) {
@@ -83,30 +86,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setPersonnel(null);
       toast.info('Déconnexion effectuée', 'À bientôt.');
     }
-  };
+  }, [toast]);
 
-  const refreshUser = async () => {
-    await loadUserData();
-  };
-
-  const isAdmin = user?.role === 'admin';
-
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        personnel,
-        isAuthenticated: !!user,
-        isLoading,
-        login,
-        logout,
-        refreshUser,
-        isAdmin,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+  // Valeur du contexte stable : les composants ne se re-rendent que si la session change vraiment
+  const value = useMemo<AuthContextType>(
+    () => ({
+      user,
+      personnel,
+      isAuthenticated: !!user,
+      isLoading,
+      login,
+      logout,
+      refreshUser: loadUserData,
+      isAdmin: user?.role === 'admin',
+    }),
+    [user, personnel, isLoading, login, logout, loadUserData]
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {

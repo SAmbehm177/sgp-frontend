@@ -1,14 +1,26 @@
 import React, { useState, useEffect } from 'react';
+import type { NavigateFn } from '../../router';
 import { api, toApiError } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationsContext';
-import { NotificationItem, Projet, Fonction, Tache, RouteParams } from '../../types/sgp';
+import { NotificationItem, Projet, Fonction, Tache } from '../../types/sgp';
 import { TaskStatusBadge, TaskPriorityBadge } from '../common/Badge';
 import { dateHeure, joursDeRetard, formatJour, ongletNotification } from '../../utils/format';
-import { AlertCircle, UserCheck, RefreshCw, Bell, Check, FolderPlus, FolderMinus, MessageSquare } from 'lucide-react';
+import {
+  AlertCircle,
+  UserCheck,
+  UserCog,
+  RefreshCw,
+  Bell,
+  Check,
+  FolderPlus,
+  FolderMinus,
+  MessageSquare,
+} from 'lucide-react';
+import { LIBELLE_CHEF_PROJET } from '../../constants';
 
 interface NotificationsViewProps {
-  onNavigate: (route: string, params?: RouteParams) => void;
+  onNavigate: NavigateFn;
 }
 
 type Onglet = 'toutes' | 'non_lues';
@@ -19,6 +31,7 @@ const TITRES: Record<NotificationItem['type'], string> = {
   tache_statut_modifie: "Le statut d'une tâche a changé",
   membre_ajoute: 'Vous avez rejoint un projet',
   membre_retire: "Vous avez été retiré d'un projet",
+  fonction_modifiee: 'Votre fonction dans un projet a changé',
   nouveau_message: 'Nouveau message dans une discussion',
   autre: 'Notification',
 };
@@ -28,6 +41,7 @@ const PUCES: Record<NotificationItem['type'], { icone: React.ElementType; classe
   tache_statut_modifie: { icone: RefreshCw, classe: 'bg-sky-50 text-sky-700' },
   membre_ajoute: { icone: FolderPlus, classe: 'bg-emerald-50 text-emerald-700' },
   membre_retire: { icone: FolderMinus, classe: 'bg-rose-50 text-rose-700' },
+  fonction_modifiee: { icone: UserCog, classe: 'bg-amber-50 text-amber-700' },
   nouveau_message: { icone: MessageSquare, classe: 'bg-indigo-50 text-indigo-700' },
   autre: { icone: Bell, classe: 'bg-slate-100 text-slate-600' },
 };
@@ -146,7 +160,7 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({ onNavigate
     if (!projet) return null;
 
     const fonction = fonctions.find((f) => f.id === projet.ma_fonction_id)?.libelle;
-    if (fonction === 'Chef de projet') {
+    if (fonction === LIBELLE_CHEF_PROJET) {
       return 'Vous êtes chef de projet. Vous pouvez ajuster l’échéance ou changer le statut depuis la fiche de la tâche.';
     }
     if (tache && personnel && tache.responsable_id === personnel.id) {
@@ -259,6 +273,7 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({ onNavigate
               <option value="tache_statut_modifie">Statut modifié</option>
               <option value="membre_ajoute">Ajouté à un projet</option>
               <option value="membre_retire">Retiré d'un projet</option>
+              <option value="fonction_modifiee">Fonction modifiée</option>
               <option value="nouveau_message">Nouveau message</option>
             </select>
 
@@ -417,9 +432,11 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({ onNavigate
                         >
                           {selection.type === 'membre_ajoute'
                             ? 'Ouvrir le projet'
-                            : selection.type === 'nouveau_message'
-                              ? 'Ouvrir la discussion'
-                              : 'Ouvrir les tâches du projet'}
+                            : selection.type === 'fonction_modifiee'
+                              ? "Voir l'équipe du projet"
+                              : selection.type === 'nouveau_message'
+                                ? 'Ouvrir la discussion'
+                                : 'Ouvrir les tâches du projet'}
                         </button>
                       )}
                       <button

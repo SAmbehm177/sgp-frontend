@@ -207,3 +207,41 @@ describe('discussion deletion polling', () => {
     );
   });
 });
+
+describe('dashboard', () => {
+  const fetchMock = vi.fn();
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('charge tout le tableau de bord avec une seule requête', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          date: '2026-11-18',
+          projets: [],
+          stats: {},
+          taches: [],
+          taches_tronquees: false,
+          membres: {},
+          fonctions: [],
+          notifications_non_lues: 0,
+          agregats: { global: { termine: 0, en_cours: 0, en_retard: 0, annule: 0, actives: 0, taux: 0 }, mensuel: [] },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      )
+    );
+
+    const donnees = await api.getDashboard();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe('http://localhost:8000/api/dashboard');
+    expect(donnees.tachesTronquees).toBe(false);
+  });
+});

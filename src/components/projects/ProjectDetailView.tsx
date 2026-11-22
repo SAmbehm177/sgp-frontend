@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import type { NavigateFn } from '../../router';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { api, toApiError } from '../../services/api';
-import { Projet, ProjectStatus, MembreProjet, Fonction, StatistiquesProjet, RouteParams } from '../../types/sgp';
+import { Projet, ProjectStatus, MembreProjet, Fonction, StatistiquesProjet } from '../../types/sgp';
 import { ProjectStatusBadge } from '../common/Badge';
 import { ProgressBar } from '../common/ProgressBar';
 import { Modal } from '../common/Modal';
@@ -12,6 +13,7 @@ import { ProjectTasksView } from './ProjectTasksView';
 import { ProjectStatsView } from './ProjectStatsView';
 import { ProjectDiscussionView } from './ProjectDiscussionView';
 import { formatJour, initiale } from '../../utils/format';
+import { LIBELLE_CHEF_PROJET } from '../../constants';
 import {
   ArrowLeft,
   Calendar,
@@ -28,7 +30,7 @@ type Tab = 'vue-ensemble' | 'taches' | 'membres' | 'discussion' | 'statistiques'
 interface ProjectDetailViewProps {
   projetId: number;
   initialTab?: Tab;
-  onNavigate: (route: string, params?: RouteParams) => void;
+  onNavigate: NavigateFn;
   onTitreChange?: (id: number, titre: string) => void;
 }
 
@@ -155,9 +157,9 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
     );
   }
 
-  const chefs = membres.filter((m) => m.fonction?.libelle === 'Chef de projet');
+  const chefs = membres.filter((m) => m.fonction?.libelle === LIBELLE_CHEF_PROJET);
   const monMembre = personnel ? membres.find((m) => m.personnel_id === personnel.id) : undefined;
-  const estChef = monMembre?.fonction?.libelle === 'Chef de projet';
+  const estChef = monMembre?.fonction?.libelle === LIBELLE_CHEF_PROJET;
   const canManage = isAdmin || estChef;
   const canEdit = isAdmin; // le backend réserve la modification du projet à l'administrateur
 

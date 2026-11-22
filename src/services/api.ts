@@ -8,16 +8,34 @@ import {
   mapAuthPayload,
   mapUser,
   mapProjet,
+  mapProjetListe,
+  mapDashboard,
   mapMembre,
   mapPersonnel,
   mapStatistiques,
   mapTache,
   mapNotification,
   mapMessage,
+  mapPersonnels,
   STATUT_PROJET_VERS_API,
   STATUT_TACHE_VERS_API,
 } from './mappers';
+import type {
+  Paginated,
+  RawAuthPayload,
+  RawDashboard,
+  RawMembre,
+  RawMessage,
+  RawMessagesPage,
+  RawNotification,
+  RawPersonnel,
+  RawProjet,
+  RawStatistiques,
+  RawTache,
+  RawUser,
+} from './apiTypes';
 import {
+  DonneesDashboard,
   User,
   Personnel,
   Fonction,
@@ -117,16 +135,16 @@ class ApiService {
   }
 
   // Parcourt toutes les pages d'une route paginée Laravel ({ data, last_page, ... })
-  private async requestAll<T = any>(path: string): Promise<T[]> {
+  private async requestAll<T>(path: string): Promise<T[]> {
     const items: T[] = [];
     let page = 1;
     let lastPage = 1;
 
     do {
       const separateur = path.includes('?') ? '&' : '?';
-      const raw = await this.request<any>(`${path}${separateur}page=${page}`);
-      if (Array.isArray(raw)) return raw as T[];
-      items.push(...((raw.data ?? []) as T[]));
+      const raw = await this.request<T[] | Paginated<T>>(`${path}${separateur}page=${page}`);
+      if (Array.isArray(raw)) return raw;
+      items.push(...(raw.data ?? []));
       lastPage = raw.last_page ?? 1;
       page += 1;
     } while (page <= lastPage);
@@ -140,7 +158,7 @@ class ApiService {
     password: string
   ): Promise<{ user: User; personnel: Personnel | null; token: string }> {
     // POST /api/login -> { token, user: { ..., personnel? } }
-    const raw = await this.request<any>('/login', {
+    const raw = await this.request<RawAuthPayload>('/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
@@ -179,7 +197,7 @@ class ApiService {
     }
 
     // GET /api/me -> l'utilisateur avec sa fiche personnel
-    const raw = await this.request<any>('/me');
+    const raw = await this.request<RawAuthPayload | RawUser>('/me');
     const { user, personnel } = mapAuthPayload(raw);
     if (!user.is_active) {
       throw { status: 403, message: 'Compte inactif.' } as ApiError;
@@ -189,12 +207,13 @@ class ApiService {
 
   // --- Projets ---
   public async getProjets(): Promise<Projet[]> {
-    const items = await this.requestAll<any>('/projets');
     // Pour un membre, l'API joint sa propre affectation (fonction) à chaque projet
-    return items.map((raw) => ({
-      ...mapProjet(raw),
-      ma_fonction_id: raw.membres_actifs?.[0]?.pivot?.fonction_id,
-    }));
+    return (await this.requestAll<RawProjet>('/projets')).map(mapProjetListe);
+  }
+
+  // Tout le tableau de bord en un seul appel (projets, stats, tâches, équipes, fonctions, agrégats)
+  public async getDashboard(): Promise<DonneesDashboard> {
+    return mapDashboard(await this.request<RawDashboard>('/dashboard'));
   }
 
   // La suppression du projet supprime aussi ses tâches via la clé étrangère (administrateur).
@@ -204,15 +223,16 @@ class ApiService {
 
   // Détail d'un projet avec son équipe active et les fonctions disponibles
   public async getProjetDetail(
-    id: number
+    id: number,
+    fonctionsDisponibles?: Fonction[]
   ): Promise<{ projet: Projet; membres: MembreProjet[]; fonctions: Fonction[] }> {
     const [raw, fonctions] = await Promise.all([
-      this.request<any>(`/projets/${id}`),
-      this.getFonctions(),
+      this.request<RawProjet>(`/projets/${id}`),
+      fonctionsDisponibles ? Promise.resolve(fonctionsDisponibles) : this.getFonctions(),
     ]);
     return {
       projet: mapProjet(raw),
-      membres: (raw.membres_actifs ?? []).map((m: any) => mapMembre(m, id, fonctions)),
+      membres: (raw.membres_actifs ?? []).map((m: RawMembre) => mapMembre(m, id, fonctions)),
       fonctions,
     };
   }
@@ -224,7 +244,7 @@ class ApiService {
     date_fin_prevue: string;
     chef_id: number;
   }): Promise<Projet> {
-    const raw = await this.request<any>('/projets', {
+    const raw = await this.request<RawProjet>('/projets', {
       method: 'POST',
       body: JSON.stringify({
         titre: data.titre,
@@ -239,14 +259,14 @@ class ApiService {
 
   public async updateProjet(id: number, data: Partial<Projet>): Promise<Projet> {
     // Le backend attend date_fin et un statut en toutes lettres ('en cours', 'terminé', 'annulé')
-    const body: Record<string, any> = {};
+    const body: Record<string, unknown> = {};
     if (data.titre !== undefined) body.titre = data.titre;
     if (data.description !== undefined) body.description = data.description;
     if (data.date_debut !== undefined) body.date_debut = data.date_debut;
     if (data.date_fin_prevue !== undefined) body.date_fin = data.date_fin_prevue;
     if (data.statut !== undefined) body.statut = STATUT_PROJET_VERS_API[data.statut];
 
-    const raw = await this.request<any>(`/projets/${id}`, {
+    const raw = await this.request<RawProjet>(`/projets/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(body),
     });
@@ -254,7 +274,7 @@ class ApiService {
   }
 
   public async getProjetStats(projetId: number): Promise<StatistiquesProjet> {
-    return mapStatistiques(await this.request<any>(`/projets/${projetId}/stats`));
+    return mapStatistiques(await this.request<RawStatistiques>(`/projets/${projetId}/stats`));
   }
 
   // --- Membres de projet ---
@@ -281,26 +301,37 @@ class ApiService {
     await this.request(`/projets/${projetId}/membres/${personnelId}`, { method: 'DELETE' });
   }
 
-  // Transfert atomique du rôle de chef avant le retrait de l'ancien chef
+  /**
+   * Remplace le chef de projet en une seule opération atomique (le projet n'est jamais sans chef).
+   * Par défaut l'ancien chef est retiré du projet ; avec `retirerAncienChef: false` il reste membre
+   * et prend la fonction `fonctionAncienChefId` (« Membre » si elle n'est pas précisée).
+   */
   public async transfererChefProjet(
     projetId: number,
     ancienChefId: number,
-    nouveauChefId: number
+    nouveauChefId: number,
+    options: { retirerAncienChef?: boolean; fonctionAncienChefId?: number } = {}
   ): Promise<void> {
+    const { retirerAncienChef = true, fonctionAncienChefId } = options;
     await this.request(`/projets/${projetId}/transfert-chef`, {
       method: 'POST',
-      body: JSON.stringify({ ancien_chef_id: ancienChefId, nouveau_chef_id: nouveauChefId }),
+      body: JSON.stringify({
+        ancien_chef_id: ancienChefId,
+        nouveau_chef_id: nouveauChefId,
+        retirer_ancien_chef: retirerAncienChef,
+        ...(fonctionAncienChefId !== undefined && { fonction_ancien_chef_id: fonctionAncienChefId }),
+      }),
     });
   }
 
   // --- Tâches ---
   public async getTaches(projetId: number): Promise<Tache[]> {
-    const items = await this.requestAll<any>(`/projets/${projetId}/taches`);
+    const items = await this.requestAll<RawTache>(`/projets/${projetId}/taches`);
     return items.map(mapTache);
   }
 
   public async getMyTasks(): Promise<Tache[]> {
-    const items = await this.requestAll<any>('/mes-taches');
+    const items = await this.requestAll<RawTache>('/mes-taches');
     return items.map(mapTache);
   }
 
@@ -314,7 +345,7 @@ class ApiService {
     date_echeance: string;
     responsable_id: number;
   }): Promise<Tache> {
-    const raw = await this.request<any>(`/projets/${data.projet_id}/taches`, {
+    const raw = await this.request<RawTache>(`/projets/${data.projet_id}/taches`, {
       method: 'POST',
       body: JSON.stringify({
         titre: data.titre,
@@ -330,7 +361,7 @@ class ApiService {
 
   // Modification partielle (PATCH) : seuls les champs fournis sont envoyés
   public async updateTache(id: number, data: Partial<Tache>): Promise<Tache> {
-    const body: Record<string, any> = {};
+    const body: Record<string, unknown> = {};
     if (data.titre !== undefined) body.titre = data.titre;
     if (data.description !== undefined) body.description = data.description;
     if (data.priorite !== undefined) body.priorite = data.priorite;
@@ -338,7 +369,7 @@ class ApiService {
     if (data.date_echeance !== undefined) body.date_echeance = data.date_echeance;
     if (data.responsable_id !== undefined) body.responsable_id = data.responsable_id;
 
-    const raw = await this.request<any>(`/taches/${id}`, {
+    const raw = await this.request<RawTache>(`/taches/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(body),
     });
@@ -347,7 +378,7 @@ class ApiService {
 
   // Statut modifiable par le responsable de la tâche, un chef de projet ou un admin
   public async updateTaskStatus(taskId: number, statut: TaskStatus): Promise<Tache> {
-    const raw = await this.request<any>(`/taches/${taskId}/status`, {
+    const raw = await this.request<RawTache>(`/taches/${taskId}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ statut: STATUT_TACHE_VERS_API[statut] }),
     });
@@ -361,15 +392,15 @@ class ApiService {
 
   // Une tâche (avec son responsable)
   public async getTache(id: number): Promise<Tache> {
-    return mapTache(await this.request<any>(`/taches/${id}`));
+    return mapTache(await this.request<RawTache>(`/taches/${id}`));
   }
 
   // Tâches en cours de tous les projets, par échéance (administrateur) : les 20 premières
   public async getUpcomingTasks(): Promise<Tache[]> {
-    const raw = await this.request<any>('/taches');
-    return ((raw.data ?? []) as any[]).map(mapTache);
+    const raw = await this.request<Paginated<RawTache>>('/taches');
+    return (raw.data ?? []).map(mapTache);
   }
-  
+
   // --- Discussion du projet ---
   // Sans option : les 30 derniers messages. avantId : les 30 précédents. apresId : les nouveaux (sondage).
   public async getMessages(
@@ -389,11 +420,11 @@ class ApiService {
     }
     const qs = params.toString();
 
-    const raw = await this.request<any>(`/projets/${projetId}/messages${qs ? `?${qs}` : ''}`);
+    const raw = await this.request<RawMessagesPage>(`/projets/${projetId}/messages${qs ? `?${qs}` : ''}`);
     return {
-      messages: ((raw.data ?? []) as any[]).map(mapMessage),
+      messages: (raw.data ?? []).map(mapMessage),
       aPlusAncien: !!raw.a_plus_ancien,
-      suppressions: ((raw.suppressions ?? []) as any[]).map((s) => ({
+      suppressions: (raw.suppressions ?? []).map((s) => ({
         id: Number(s.id),
         messageId: Number(s.message_id),
       })),
@@ -401,8 +432,67 @@ class ApiService {
     };
   }
 
+  public async streamMessages(
+    projetId: number,
+    opts: { apresId: number; apresSuppressionId: number },
+    onUpdate: (update: {
+      messages: Message[];
+      suppressions: { id: number; messageId: number }[];
+      dernierIdSuppression: number;
+    }) => void,
+    signal: AbortSignal
+  ): Promise<void> {
+    const params = new URLSearchParams({
+      apres_id: String(opts.apresId),
+      apres_suppression_id: String(opts.apresSuppressionId),
+    });
+    const baseUrl = API_BASE_URL.replace(/\/$/, '');
+    const res = await fetch(`${baseUrl}/projets/${projetId}/messages/stream?${params}`, {
+      headers: {
+        ...this.getHeaders(),
+        Accept: 'text/event-stream',
+      },
+      signal,
+    });
+
+    if (!res.ok) throw { status: res.status, message: 'Impossible d’ouvrir la synchronisation.' };
+    if (!res.body) throw new Error('Flux de messages indisponible.');
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) return;
+
+      buffer += decoder.decode(value, { stream: true });
+      const blocks = buffer.split('\n\n');
+      buffer = blocks.pop() ?? '';
+
+      for (const block of blocks) {
+        const data = block
+          .split('\n')
+          .filter((line) => line.startsWith('data:'))
+          .map((line) => line.slice(5).trimStart())
+          .join('\n');
+
+        if (!data) continue;
+        const raw = JSON.parse(data) as RawMessagesPage;
+        onUpdate({
+          messages: (raw.data ?? []).map(mapMessage),
+          suppressions: (raw.suppressions ?? []).map((s) => ({
+            id: Number(s.id),
+            messageId: Number(s.message_id),
+          })),
+          dernierIdSuppression: Number(raw.dernier_id_suppression ?? 0),
+        });
+      }
+    }
+  }
+
   public async sendMessage(projetId: number, contenu: string, destinataireId?: number | null): Promise<Message> {
-    const raw = await this.request<any>(`/projets/${projetId}/messages`, {
+    const raw = await this.request<RawMessage>(`/projets/${projetId}/messages`, {
       method: 'POST',
       body: JSON.stringify({ contenu, destinataire_id: destinataireId ?? null }),
     });
@@ -417,19 +507,19 @@ class ApiService {
   // --- Notifications ---
   // Les 20 plus récentes
   public async getNotifications(): Promise<NotificationItem[]> {
-    const raw = await this.request<any>('/notifications');
-    return ((raw.data ?? []) as any[]).map(mapNotification);
+    const raw = await this.request<Paginated<RawNotification>>('/notifications');
+    return (raw.data ?? []).map(mapNotification);
   }
 
   // Toutes les notifications (page dédiée)
   public async getAllNotifications(): Promise<NotificationItem[]> {
-    const items = await this.requestAll<any>('/notifications');
+    const items = await this.requestAll<RawNotification>('/notifications');
     return items.map(mapNotification);
   }
 
   // Nombre de notifications non lues (le total de la liste filtrée)
   public async getUnreadCount(): Promise<number> {
-    const raw = await this.request<any>('/notifications?non_lues=1');
+    const raw = await this.request<Paginated<RawNotification>>('/notifications?non_lues=1');
     return Number(raw.total ?? 0);
   }
 
@@ -452,17 +542,16 @@ class ApiService {
     if (q) params.set('q', q);
     if (avecAcces) params.set('avec_acces', '1');
     const query = params.toString();
-    const raw = await this.request<any>(`/personnels${query ? `?${query}` : ''}`);
-    return ((raw.data ?? raw) as any[])
-      .map((p) => mapPersonnel(p))
-      .filter((p): p is Personnel => p !== null);
+    const raw = await this.request<RawPersonnel[] | Paginated<RawPersonnel>>(
+      `/personnels${query ? `?${query}` : ''}`
+    );
+    return mapPersonnels(Array.isArray(raw) ? raw : (raw.data ?? []));
   }
 
   // --- Administration du personnel (administrateur) ---
   // Fiches sans compte : GET /personnels?sans_acces=1
   public async getPersonnelSansAcces(): Promise<Personnel[]> {
-    const items = await this.requestAll<any>('/personnels?sans_acces=1');
-    return items.map((p) => mapPersonnel(p)).filter((p): p is Personnel => p !== null);
+    return mapPersonnels(await this.requestAll<RawPersonnel>('/personnels?sans_acces=1'));
   }
 
   // Création d'une fiche, sans compte : POST /personnels
@@ -472,7 +561,7 @@ class ApiService {
     matricule: string;
     poste: string;
   }): Promise<Personnel> {
-    const raw = await this.request<any>('/personnels', { method: 'POST', body: JSON.stringify(data) });
+    const raw = await this.request<RawPersonnel>('/personnels', { method: 'POST', body: JSON.stringify(data) });
     return mapPersonnel(raw) as Personnel;
   }
 
@@ -486,13 +575,13 @@ class ApiService {
 
   // --- Administration des comptes ---
   public async getUsers(): Promise<User[]> {
-    const items = await this.requestAll<any>('/users');
+    const items = await this.requestAll<RawUser>('/users');
     return items.map(mapUser);
   }
 
   // Activation / désactivation d'un compte (administrateur). Désactiver coupe aussi les sessions ouvertes.
   public async setUserActive(userId: number, active: boolean): Promise<User> {
-    const raw = await this.request<any>(`/users/${userId}/status`, {
+    const raw = await this.request<RawUser>(`/users/${userId}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ statut: active ? 'actif' : 'inactif' }),
     });

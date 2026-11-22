@@ -1,6 +1,7 @@
 import React from 'react';
+import type { NavigateFn, RouteName } from '../../router';
 import { useAuth } from '../../context/AuthContext';
-import { LayersIcon,LayoutDashboard, Folder, ListCheck, Shield, User, X,Bell,WaypointsIcon } from 'lucide-react';
+import { LayoutDashboard, Folder, ListCheck, Shield, User, X, Bell } from 'lucide-react';
 import { useNotifications } from '../../context/NotificationsContext';
 import { FaStaylinked } from "react-icons/fa";
 
@@ -8,10 +9,16 @@ interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
   currentRoute: string;
-  onNavigate: (route: string) => void;
+  onNavigate: NavigateFn;
 }
 
-const navigationItems = [
+const navigationItems: Array<{
+  id: RouteName;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  adminOnly: boolean;
+  hideForAdmin: boolean;
+}> = [
   { id: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard, adminOnly: false, hideForAdmin: false },
   { id: 'projets', label: 'Projets', icon: Folder, adminOnly: false, hideForAdmin: false },
   { id: 'mes-taches', label: 'Mes tâches', icon: ListCheck, adminOnly: false, hideForAdmin: true },

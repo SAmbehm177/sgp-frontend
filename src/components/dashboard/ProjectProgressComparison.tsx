@@ -170,7 +170,7 @@ export const ProjectProgressComparison: React.FC<ProjectProgressComparisonProps>
               aria-label="Sélectionner un projet à afficher dans le diagramme"
               value={chart3ProjetId || 'all'}
               onChange={(e) => setChart3ProjetId(e.target.value)}
-              className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-slate-900 w-full sm:w-auto max-w-[260px]"
+              className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-slate-900 w-full sm:w-auto max-w-260px"
             >
               {projectRows.map((row) => (
                 <option key={row.projet.id} value={String(row.projet.id)}>
@@ -404,7 +404,7 @@ export const ProjectProgressComparison: React.FC<ProjectProgressComparisonProps>
                                     })
                                   }
                                   aria-label={`${projet.titre} — ${bar.label} : ${bar.responsables.full} (${bar.percent}%)`}
-                                  className={`flex-1 max-w-[140px] h-full flex items-end justify-center group cursor-pointer focus-visible:outline-2 focus-visible:outline-slate-900 rounded-t-lg px-2 transition-colors ${
+                                  className={`flex-1 max-w-140px h-full flex items-end justify-center group cursor-pointer focus-visible:outline-2 focus-visible:outline-slate-900 rounded-t-lg px-2 transition-colors ${
                                     isHovered ? 'bg-slate-50/80' : ''
                                   }`}
                                 >
@@ -448,7 +448,7 @@ export const ProjectProgressComparison: React.FC<ProjectProgressComparisonProps>
                                   })
                                 }
                                 title={bar.responsables.full}
-                                className="flex-1 max-w-[160px] text-center cursor-pointer group"
+                                className="flex-1 max-w-160px text-center cursor-pointer group"
                               >
                                 <span
                                   className={`text-xs font-semibold block transition-colors ${
@@ -469,7 +469,7 @@ export const ProjectProgressComparison: React.FC<ProjectProgressComparisonProps>
                   </div>
 
                   {/* Interactive Footer Detail Strip */}
-                  <div className="mt-4 pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 min-h-[28px]">
+                  <div className="mt-4 pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 min-h-28px">
                     {activeBar ? (
                       <>
                         <span className="font-semibold text-slate-900">
@@ -580,7 +580,7 @@ export const ProjectProgressComparison: React.FC<ProjectProgressComparisonProps>
 
                 {/* Plot Area + Horizontal Scroll Wrapper */}
                 <div className="flex-1 overflow-x-auto">
-                  <div className="min-w-[360px] pt-6">
+                  <div className="min-w-360px pt-6">
                     {/* Chart Bars Plot Box */}
                     <div className="relative h-56 border-b border-slate-200">
                       {/* Horizontal Gridlines */}
@@ -643,7 +643,7 @@ export const ProjectProgressComparison: React.FC<ProjectProgressComparisonProps>
                                 })
                               }
                               aria-label={`${projet.titre} : ${rate}% d'avancement (${terminees} sur ${total - annulees} tâches non annulées terminées)`}
-                              className={`flex-1 min-w-[96px] max-w-[200px] h-full flex flex-col justify-end items-center group cursor-pointer focus-visible:outline-2 focus-visible:outline-slate-900 rounded-t-lg px-2 transition-colors ${
+                              className={`flex-1 min-w-96px max-w-200px h-full flex flex-col justify-end items-center group cursor-pointer focus-visible:outline-2 focus-visible:outline-slate-900 rounded-t-lg px-2 transition-colors ${
                                 isHovered ? 'bg-slate-50/80' : ''
                               }`}
                             >
@@ -672,7 +672,7 @@ export const ProjectProgressComparison: React.FC<ProjectProgressComparisonProps>
                                     return (
                                       <div
                                         key={s.key}
-                                        className="flex-1 max-w-[22px] h-full flex items-end justify-center relative"
+                                        className="flex-1 max-w-22px h-full flex items-end justify-center relative"
                                         title={`${s.label} : ${s.value}`}
                                       >
                                         {s.value > 0 && (
@@ -720,7 +720,7 @@ export const ProjectProgressComparison: React.FC<ProjectProgressComparisonProps>
                               })
                             }
                             title={responsablesSummary.full}
-                            className="flex-1 min-w-[96px] max-w-[200px] text-center group cursor-pointer"
+                            className="flex-1 min-w-96px max-w-200px text-center group cursor-pointer"
                           >
                             <span
                               className={`text-xs font-semibold leading-snug line-clamp-2 block transition-colors ${
@@ -744,15 +744,15 @@ export const ProjectProgressComparison: React.FC<ProjectProgressComparisonProps>
               </div>
 
               {/* Interactive Footer Detail Strip */}
-              <div className="mt-4 pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 min-h-[28px]">
+              <div className="mt-4 pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 min-h-28px">
                 {hoveredProjectRow ? (
                   <>
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="font-semibold text-slate-900 truncate max-w-[240px]">
+                      <span className="font-semibold text-slate-900 truncate max-w-240px">
                         {hoveredProjectRow.projet.titre}
                       </span>
                       <ArrowUpRight className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                      <span className="text-[11px] text-slate-500 truncate max-w-[220px]">
+                      <span className="text-[11px] text-slate-500 truncate max-w-220px">
                         · {hoveredProjectRow.responsablesSummary.full}
                       </span>
                     </div>

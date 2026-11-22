@@ -39,6 +39,9 @@ export const titreNotification = (type: string): string => {
     case 'membre_retire':
       return "Retrait d'un projet";
 
+    case 'fonction_modifiee':
+      return 'Fonction modifiée';
+
     case 'nouveau_message':
       return 'Nouveau message';
       
@@ -76,6 +79,7 @@ export const joursDeRetard = (echeance?: string | null): number => {
 // Onglet du projet à ouvrir depuis une notification
 export const ongletNotification = (type: string): ProjectTab => {
   if (type === 'membre_ajoute') return 'vue-ensemble';
+  if (type === 'fonction_modifiee') return 'membres'; // l'équipe : on y voit sa nouvelle fonction
   if (type === 'nouveau_message') return 'discussion';
   return 'taches';
 };

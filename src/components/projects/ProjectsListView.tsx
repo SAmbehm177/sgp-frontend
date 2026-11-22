@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import type { NavigateFn } from '../../router';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { api, toApiError } from '../../services/api';
-import { Personnel, Projet, RouteParams } from '../../types/sgp';
+import { Personnel, Projet } from '../../types/sgp';
 import { ProgressBar } from '../common/ProgressBar';
 import { ProjectStatusBadge } from '../common/Badge';
 import { EmptyState } from '../common/EmptyState';
@@ -12,7 +13,7 @@ import { getLocalDateString, isBeforeLocalToday } from '../../utils/date';
 import { Folder, Plus, Search, Calendar, Users, AlertCircle } from 'lucide-react';
 
 interface ProjectsListViewProps {
-  onNavigate: (route: string, params?: RouteParams) => void;
+  onNavigate: NavigateFn;
   openCreateImmediately?: boolean;
 }
 

@@ -107,6 +107,7 @@ export type NotificationType =
   | 'tache_statut_modifie'
   | 'membre_ajoute'
   | 'membre_retire'
+  | 'fonction_modifiee'
   | 'nouveau_message'
   | 'autre';
 
@@ -144,20 +145,6 @@ export interface StatistiquesProjet {
   charge_par_membre: ChargeMembre[];
 }
 
-export interface ChargeMembre {
-  personnel_id: number;
-  total: number; // tâches non annulées
-  terminees: number;
-  en_cours: number;
-  en_retard: number;
-}
-
-export interface ApiConfig {
-  baseUrl: string;
-  useMock: boolean;
-  token: string | null;
-}
-
 // Paramètres transmis lors d'une navigation interne (hash routing)
 export type ProjectTab = 'vue-ensemble' | 'taches' | 'membres' | 'discussion' | 'statistiques';
 
@@ -165,4 +152,34 @@ export interface RouteParams {
   id?: number;
   tab?: ProjectTab;
   filter?: string;
+}
+
+/** Répartition des tâches visibles par l'utilisateur, calculée par le serveur. */
+export interface RepartitionTaches {
+  termine: number;
+  en_cours: number; // en cours et pas encore en retard
+  en_retard: number;
+  annule: number;
+  actives: number; // hors tâches annulées
+  taux: number; // % de tâches terminées parmi les actives
+}
+
+export interface PointMensuel {
+  mois: string; // 'AAAA-MM'
+  planifiees: number;
+  realisees: number;
+  tauxCumule: number;
+}
+
+/** Tout ce qu'affiche le tableau de bord, chargé en un seul appel. */
+export interface DonneesDashboard {
+  date: string;
+  projets: Projet[];
+  taches: Tache[];
+  tachesTronquees: boolean;
+  statsParProjet: Record<number, StatistiquesProjet>;
+  membresParProjet: Record<number, MembreProjet[]>;
+  fonctions: Fonction[];
+  notificationsNonLues: number;
+  agregats: { global: RepartitionTaches; mensuel: PointMensuel[] };
 }

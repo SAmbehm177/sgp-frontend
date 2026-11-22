@@ -16,9 +16,35 @@ import {
   TaskPriority,
   NotificationItem,
   Message,
+  DonneesDashboard,
 } from '../types/sgp';
+import type {
+  RawAuthPayload,
+  RawDashboard,
+  RawMembre,
+  RawMessage,
+  RawNotification,
+  RawPersonnel,
+  RawProjet,
+  RawStatistiques,
+  RawTache,
+  RawUser,
+} from './apiTypes';
 
-export function mapPersonnel(raw: any, userId?: number): Personnel | null {
+// --- Petits utilitaires de conversion ---
+
+// Les dates arrivent en 'AAAA-MM-JJ' (ou en ISO complet) : on garde seulement le jour
+const jour = (valeur: unknown): string => (valeur ? String(valeur).slice(0, 10) : '');
+
+// Compteur facultatif : absent -> undefined (et non 0), pour distinguer « inconnu » de « zéro »
+const compteur = (valeur: number | string | undefined): number | undefined =>
+  valeur !== undefined ? Number(valeur) : undefined;
+
+const nomComplet = (p: { prenom: string; nom: string }): string => `${p.prenom} ${p.nom}`;
+
+// --- Personnel & comptes ---
+
+export function mapPersonnel(raw: RawPersonnel | null | undefined, userId?: number): Personnel | null {
   if (!raw) return null;
   return {
     id: raw.id,
@@ -32,10 +58,14 @@ export function mapPersonnel(raw: any, userId?: number): Personnel | null {
   };
 }
 
-export function mapUser(raw: any): User {
+/** Variante pour les listes : écarte les entrées vides. */
+export function mapPersonnels(items: Array<RawPersonnel | null | undefined>): Personnel[] {
+  return items.map((p) => mapPersonnel(p)).filter((p): p is Personnel => p !== null);
+}
+
+export function mapUser(raw: RawUser): User {
   // Le backend stocke status = 'actif' | 'inactif' ; le front manipule is_active (booléen)
-  const isActive =
-    typeof raw.is_active === 'boolean' ? raw.is_active : raw.statut === 'actif';
+  const isActive = typeof raw.is_active === 'boolean' ? raw.is_active : raw.statut === 'actif';
 
   return {
     id: raw.id,
@@ -55,15 +85,16 @@ export function mapUser(raw: any): User {
 /**
  * Accepte { token, user: {..., personnel?} } (login) ou { user } / user direct (me).
  */
-export function mapAuthPayload(raw: any): {
+export function mapAuthPayload(raw: RawAuthPayload | RawUser): {
   user: User;
   personnel: Personnel | null;
   token?: string;
 } {
-  const rawUser = raw.user ?? raw;
+  const enveloppe = raw as RawAuthPayload;
+  const rawUser = enveloppe.user ?? (raw as RawUser);
   const user = mapUser(rawUser);
-  const personnel = mapPersonnel(rawUser.personnel ?? raw.personnel, user.id);
-  return { user, personnel, token: raw.token ?? raw.access_token };
+  const personnel = mapPersonnel(rawUser.personnel ?? enveloppe.personnel, user.id);
+  return { user, personnel, token: enveloppe.token ?? enveloppe.access_token };
 }
 
 // --- Projets ---
@@ -75,10 +106,7 @@ const STATUT_PROJET: Record<string, ProjectStatus> = {
   'annulé': 'annule',
 };
 
-// Les dates arrivent en 'AAAA-MM-JJ' (ou en ISO complet) : on garde seulement le jour
-const jour = (valeur: any): string => (valeur ? String(valeur).slice(0, 10) : '');
-
-export function mapProjet(raw: any): Projet {
+export function mapProjet(raw: RawProjet): Projet {
   const actives = Number(raw.taches_actives_count ?? 0);
   const terminees = Number(raw.taches_terminees_count ?? 0);
 
@@ -90,15 +118,20 @@ export function mapProjet(raw: any): Projet {
     date_fin_prevue: jour(raw.date_fin),
     statut: STATUT_PROJET[raw.statut] ?? 'en_cours',
     taux_avancement: actives > 0 ? Math.round((terminees / actives) * 100) : 0,
-    membres_count: raw.membres_count !== undefined ? Number(raw.membres_count) : undefined,
-    taches_en_cours: raw.taches_en_cours_count !== undefined ? Number(raw.taches_en_cours_count) : undefined,
-    taches_terminees: raw.taches_terminees_count !== undefined ? Number(raw.taches_terminees_count) : undefined,
-    taches_annulees: raw.taches_annulees_count !== undefined ? Number(raw.taches_annulees_count) : undefined,
-    taches_en_retard: raw.taches_en_retard_count !== undefined ? Number(raw.taches_en_retard_count) : undefined,
+    membres_count: compteur(raw.membres_count),
+    taches_en_cours: compteur(raw.taches_en_cours_count),
+    taches_terminees: compteur(raw.taches_terminees_count),
+    taches_annulees: compteur(raw.taches_annulees_count),
+    taches_en_retard: compteur(raw.taches_en_retard_count),
     chefs_noms: Array.isArray(raw.chefs_noms) ? raw.chefs_noms : undefined,
     created_at: raw.created_at ?? '',
     updated_at: raw.updated_at ?? undefined,
   };
+}
+
+/** Projet d'une liste : l'API joint, pour un membre, sa propre affectation (donc sa fonction dans le projet). */
+export function mapProjetListe(raw: RawProjet): Projet {
+  return { ...mapProjet(raw), ma_fonction_id: raw.membres_actifs?.[0]?.pivot?.fonction_id };
 }
 
 // Statuts du front -> statuts attendus par le backend (pas d'équivalent pour 'suspendu')
@@ -112,26 +145,26 @@ export const STATUT_PROJET_VERS_API: Record<ProjectStatus, string> = {
 // --- Équipe d'un projet ---
 
 // Un élément de `membres_actifs` = une fiche personnel + son `pivot` (fonction, retrait)
-export function mapMembre(raw: any, projetId: number, fonctions: Fonction[]): MembreProjet {
-  const pivot = raw.pivot ?? {};
-  const retire = !!pivot.date_retrait;
+export function mapMembre(raw: RawMembre, projetId: number, fonctions: Fonction[]): MembreProjet {
+  const pivot = raw.pivot;
+  const retire = !!pivot?.date_retrait;
 
   return {
     id: raw.id,
-    projet_id: pivot.projet_id ?? projetId,
+    projet_id: pivot?.projet_id ?? projetId,
     personnel_id: raw.id,
-    fonction_id: pivot.fonction_id,
-    date_affectation: jour(pivot.created_at),
-    date_retrait: retire ? jour(pivot.date_retrait) : null,
+    fonction_id: pivot?.fonction_id ?? 0,
+    date_affectation: jour(pivot?.created_at),
+    date_retrait: retire ? jour(pivot?.date_retrait) : null,
     statut: retire ? 'retire' : 'actif',
-    fonction: fonctions.find((f) => f.id === pivot.fonction_id),
+    fonction: fonctions.find((f) => f.id === pivot?.fonction_id),
     personnel: mapPersonnel(raw) ?? undefined,
   };
 }
 
 // --- Statistiques d'un projet ---
 
-export function mapStatistiques(raw: any): StatistiquesProjet {
+export function mapStatistiques(raw: RawStatistiques): StatistiquesProjet {
   return {
     taux_avancement: Number(raw.taux_avancement ?? 0),
     total_taches: Number(raw.total_taches ?? 0),
@@ -144,7 +177,7 @@ export function mapStatistiques(raw: any): StatistiquesProjet {
       moyenne: Number(raw.par_priorite?.moyenne ?? 0),
       haute: Number(raw.par_priorite?.haute ?? 0),
     },
-    charge_par_membre: ((raw.charge_par_membre ?? []) as any[]).map((m) => ({
+    charge_par_membre: (raw.charge_par_membre ?? []).map((m) => ({
       personnel_id: Number(m.personnel_id),
       total: Number(m.total ?? 0),
       terminees: Number(m.terminees ?? 0),
@@ -153,6 +186,7 @@ export function mapStatistiques(raw: any): StatistiquesProjet {
     })),
   };
 }
+
 // --- Tâches ---
 
 // Statuts du backend ('en cours' | 'terminé' | 'annulé') <-> statuts du front
@@ -168,7 +202,7 @@ export const STATUT_TACHE_VERS_API: Record<TaskStatus, string> = {
   annule: 'annulé',
 };
 
-export function mapTache(raw: any): Tache {
+export function mapTache(raw: RawTache): Tache {
   return {
     id: raw.id,
     projet_id: raw.projet_id,
@@ -189,7 +223,7 @@ export function mapTache(raw: any): Tache {
 // --- Notifications ---
 
 // Selon la configuration, Laravel peut renvoyer `data` sous forme de texte JSON (parfois encodé deux fois)
-function lireDonnees(brut: any): Record<string, any> {
+function lireDonnees(brut: unknown): Record<string, unknown> {
   let data = brut;
   for (let i = 0; i < 2 && typeof data === 'string'; i++) {
     try {
@@ -198,22 +232,27 @@ function lireDonnees(brut: any): Record<string, any> {
       return {};
     }
   }
-  return data && typeof data === 'object' ? data : {};
+  return data && typeof data === 'object' ? (data as Record<string, unknown>) : {};
 }
 
-const TYPES_CONNUS: NotificationItem['type'][] = [
+const TYPES_CONNUS: ReadonlyArray<NotificationItem['type']> = [
   'tache_affectee',
   'tache_statut_modifie',
   'membre_ajoute',
   'membre_retire',
+  'fonction_modifiee',
   'nouveau_message',
 ];
+
+const estTypeConnu = (valeur: unknown): valeur is NotificationItem['type'] =>
+  TYPES_CONNUS.includes(valeur as NotificationItem['type']);
 
 const TYPE_PAR_CLASSE: Record<string, NotificationItem['type']> = {
   TacheAffectee: 'tache_affectee',
   TacheStatutModifie: 'tache_statut_modifie',
   MembreAjoute: 'membre_ajoute',
   MembreRetire: 'membre_retire',
+  FonctionModifiee: 'fonction_modifiee',
   NouveauMessage: 'nouveau_message',
 };
 
@@ -222,35 +261,38 @@ const MESSAGE_PAR_TYPE: Record<NotificationItem['type'], string> = {
   tache_statut_modifie: "Le statut d'une tâche a changé.",
   membre_ajoute: 'Vous avez été ajouté à un projet.',
   membre_retire: "Vous avez été retiré d'un projet.",
+  fonction_modifiee: 'Votre fonction dans un projet a changé.',
   nouveau_message: 'Nouveau message dans la discussion d’un projet.',
   autre: '',
 };
 
+const nombreOuUndefined = (valeur: unknown): number | undefined =>
+  valeur !== undefined && valeur !== null ? Number(valeur) : undefined;
+
 // Notification Laravel : { id, type, data: { type, message, tache_id, projet_id }, read_at, created_at }
-export function mapNotification(raw: any): NotificationItem {
+export function mapNotification(raw: RawNotification): NotificationItem {
   const data = lireDonnees(raw.data);
   const classe = String(raw.type ?? '').split('\\').pop() ?? '';
-
-  const type: NotificationItem['type'] = TYPES_CONNUS.includes(data.type)
+  const type: NotificationItem['type'] = estTypeConnu(data.type)
     ? data.type
-    : TYPE_PAR_CLASSE[classe] ?? 'autre';
+    : (TYPE_PAR_CLASSE[classe] ?? 'autre');
 
   return {
     id: String(raw.id),
     type,
-    message: data.message || MESSAGE_PAR_TYPE[type],
+    message: (typeof data.message === 'string' && data.message) || MESSAGE_PAR_TYPE[type],
     lue: raw.read_at !== null && raw.read_at !== undefined,
     created_at: raw.created_at ?? '',
-    projet_id: data.projet_id !== undefined && data.projet_id !== null ? Number(data.projet_id) : undefined,
+    projet_id: nombreOuUndefined(data.projet_id),
     projet_titre: typeof data.projet_titre === 'string' ? data.projet_titre : undefined,
-    tache_id: data.tache_id !== undefined && data.tache_id !== null ? Number(data.tache_id) : undefined,
+    tache_id: nombreOuUndefined(data.tache_id),
   };
 }
 
 // --- Messages (discussion d'un projet) ---
 
 // L'auteur s'affiche avec le nom de sa fiche personnel, à défaut avec le nom du compte (admin)
-export function mapMessage(raw: any): Message {
+export function mapMessage(raw: RawMessage): Message {
   const p = raw.auteur?.personnel;
   const d = raw.destinataire?.personnel;
   return {
@@ -258,9 +300,39 @@ export function mapMessage(raw: any): Message {
     projet_id: raw.projet_id,
     user_id: raw.user_id,
     destinataire_id: raw.destinataire_id ?? null,
-    destinataire_nom: d ? `${d.prenom} ${d.nom}` : raw.destinataire?.name ?? null,
+    destinataire_nom: d ? nomComplet(d) : (raw.destinataire?.name ?? null),
     contenu: raw.contenu,
-    auteur_nom: p ? `${p.prenom} ${p.nom}` : raw.auteur?.name ?? 'Utilisateur',
+    auteur_nom: p ? nomComplet(p) : (raw.auteur?.name ?? 'Utilisateur'),
     created_at: raw.created_at ?? '',
+  };
+}
+
+// --- Tableau de bord ---
+
+// JSON : un objet indexé par identifiant (les clés deviennent du texte) -> Record<number, …>
+const parIdentifiant = <A, B>(objet: Record<string, A>, convertir: (valeur: A, id: number) => B): Record<number, B> =>
+  Object.fromEntries(Object.entries(objet).map(([id, valeur]) => [Number(id), convertir(valeur, Number(id))]));
+
+export function mapDashboard(raw: RawDashboard): DonneesDashboard {
+  return {
+    date: raw.date,
+    projets: raw.projets.map(mapProjetListe),
+    taches: raw.taches.map(mapTache),
+    tachesTronquees: raw.taches_tronquees,
+    statsParProjet: parIdentifiant(raw.stats, mapStatistiques),
+    membresParProjet: parIdentifiant(raw.membres, (membres, projetId) =>
+      membres.map((m) => mapMembre(m, projetId, raw.fonctions))
+    ),
+    fonctions: raw.fonctions,
+    notificationsNonLues: raw.notifications_non_lues,
+    agregats: {
+      global: raw.agregats.global,
+      mensuel: raw.agregats.mensuel.map((m) => ({
+        mois: m.mois,
+        planifiees: m.planifiees,
+        realisees: m.realisees,
+        tauxCumule: m.taux_cumule,
+      })),
+    },
   };
 }
