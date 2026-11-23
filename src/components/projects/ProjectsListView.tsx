@@ -490,6 +490,7 @@ export const ProjectsListView: React.FC<ProjectsListViewProps> = ({
               <input
                 id="projet-fin"
                 type="date"
+                min={form.date_debut || getLocalDateString()}
                 value={form.date_fin}
                 onChange={update('date_fin')}
                 className={inputClass(!!formErrors.date_fin)}

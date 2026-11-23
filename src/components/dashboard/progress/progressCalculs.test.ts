@@ -98,6 +98,20 @@ describe('calculerRepartition', () => {
     expect(enRetard).toBe(0);
     expect(segments.every((s) => s.percent === 0)).toBe(true);
   });
+
+  it('répartit les centièmes résiduels pour que les pourcentages totalisent 100 %', () => {
+    const { segments } = calculerRepartition(
+      [
+        tache({ statut: 'termine' }),
+        tache({ statut: 'en_cours', date_echeance: '2026-12-01' }),
+        tache({ statut: 'en_cours', date_echeance: '2026-12-01' }),
+      ],
+      today
+    );
+
+    expect(segments.map((segment) => segment.percent)).toEqual([33.33, 66.67, 0, 0]);
+    expect(segments.reduce((sum, segment) => sum + segment.percent, 0)).toBe(100);
+  });
 });
 
 describe('construireLignesProjets', () => {

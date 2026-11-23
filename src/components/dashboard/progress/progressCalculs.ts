@@ -73,38 +73,58 @@ export function calculerRepartition(tasks: Tache[], today: string) {
   ).length;
   const annule = tasks.filter((t) => t.statut === 'annule').length;
 
-  const pct = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0);
-
   const segments: DonutSegment[] = [
     {
       key: 'termine',
       label: 'Terminées',
       count: termine,
-      percent: pct(termine),
+      percent: 0,
       color: '#16A34A',
     },
     {
       key: 'en_cours_ok',
       label: 'En cours',
       count: enCoursOk,
-      percent: pct(enCoursOk),
+      percent: 0,
       color: '#2563EB',
     },
     {
       key: 'en_retard',
       label: 'En retard',
       count: enRetard,
-      percent: pct(enRetard),
+      percent: 0,
       color: '#DC2626',
     },
     {
       key: 'annule',
       label: 'Annulées',
       count: annule,
-      percent: pct(annule),
+      percent: 0,
       color: '#94A3B8',
     },
   ];
+
+  if (total > 0) {
+    const unitsPerPercent = 100;
+    const totalUnits = 100 * unitsPerPercent;
+    const allocations = segments.map((segment, index) => {
+      const exactUnits = (segment.count / total) * totalUnits;
+      const units = Math.floor(exactUnits);
+      return { index, units, remainder: exactUnits - units };
+    });
+    const remainingUnits = totalUnits - allocations.reduce((sum, allocation) => sum + allocation.units, 0);
+
+    allocations
+      .sort((a, b) => b.remainder - a.remainder)
+      .slice(0, remainingUnits)
+      .forEach((allocation) => {
+        allocation.units += 1;
+      });
+
+    allocations.forEach((allocation) => {
+      segments[allocation.index].percent = allocation.units / unitsPerPercent;
+    });
+  }
 
   const completionRate = tauxAvancementTaches(tasks);
   return { total, completionRate, enCours, enRetard, segments };
