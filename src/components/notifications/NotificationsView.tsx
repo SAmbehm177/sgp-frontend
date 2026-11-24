@@ -29,6 +29,7 @@ type FiltreType = 'all' | NotificationItem['type'];
 const TITRES: Record<NotificationItem['type'], string> = {
   tache_affectee: 'Une tâche vous est assignée',
   tache_statut_modifie: "Le statut d'une tâche a changé",
+  projet_termine: 'Un projet est terminé',
   membre_ajoute: 'Vous avez rejoint un projet',
   membre_retire: "Vous avez été retiré d'un projet",
   fonction_modifiee: 'Votre fonction dans un projet a changé',
@@ -39,6 +40,7 @@ const TITRES: Record<NotificationItem['type'], string> = {
 const PUCES: Record<NotificationItem['type'], { icone: React.ElementType; classe: string }> = {
   tache_affectee: { icone: UserCheck, classe: 'bg-brand-50 text-brand-800' },
   tache_statut_modifie: { icone: RefreshCw, classe: 'bg-sky-50 text-sky-700' },
+  projet_termine: { icone: FolderPlus, classe: 'bg-emerald-50 text-emerald-700' },
   membre_ajoute: { icone: FolderPlus, classe: 'bg-emerald-50 text-emerald-700' },
   membre_retire: { icone: FolderMinus, classe: 'bg-rose-50 text-rose-700' },
   fonction_modifiee: { icone: UserCog, classe: 'bg-amber-50 text-amber-700' },
@@ -271,6 +273,7 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({ onNavigate
               <option value="all">Type : tous</option>
               <option value="tache_affectee">Tâche assignée</option>
               <option value="tache_statut_modifie">Statut modifié</option>
+              <option value="projet_termine">Projet terminé</option>
               <option value="membre_ajoute">Ajouté à un projet</option>
               <option value="membre_retire">Retiré d'un projet</option>
               <option value="fonction_modifiee">Fonction modifiée</option>
@@ -295,7 +298,7 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({ onNavigate
               {affichees.length === 0 ? (
                 <p className="py-12 text-center text-xs text-slate-500">
                   {items.length === 0
-                    ? "Vous serez prévenu ici lorsqu'une tâche vous sera confiée ou que son statut changera."
+                    ? "Vous serez prévenu ici lorsqu’un projet sera terminé ou qu’une activité vous concernant aura lieu."
                     : 'Aucune notification ne correspond à ces filtres.'}
                 </p>
               ) : (

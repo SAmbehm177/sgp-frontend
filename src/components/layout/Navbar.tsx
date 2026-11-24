@@ -85,7 +85,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       {/* Menu utilisateur */}
       <div className="flex items-center gap-2 sm:gap-3 shrink-0">
         {/* Notifications */}
-        {!isAdmin && <div className="relative" ref={notifRef}>
+        <div className="relative" ref={notifRef}>
           <button
             onClick={() => {
               setShowNotifs(!showNotifs);
@@ -162,7 +162,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             </div>
           )}
-        </div>}
+        </div>
 
         <div className="relative" ref={userRef}>
           <button

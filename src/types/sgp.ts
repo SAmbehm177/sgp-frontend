@@ -105,6 +105,7 @@ export interface Tache {
 export type NotificationType =
   | 'tache_affectee'
   | 'tache_statut_modifie'
+  | 'projet_termine'
   | 'membre_ajoute'
   | 'membre_retire'
   | 'fonction_modifiee'

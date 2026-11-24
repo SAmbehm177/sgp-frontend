@@ -22,7 +22,7 @@ const navigationItems: Array<{
   { id: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard, adminOnly: false, hideForAdmin: false },
   { id: 'projets', label: 'Projets', icon: Folder, adminOnly: false, hideForAdmin: false },
   { id: 'mes-taches', label: 'Mes tâches', icon: ListCheck, adminOnly: false, hideForAdmin: true },
-  { id: 'notifications', label: 'Notifications', icon: Bell, adminOnly: false, hideForAdmin: true },
+  { id: 'notifications', label: 'Notifications', icon: Bell, adminOnly: false, hideForAdmin: false },
   { id: 'administration', label: 'Administration', icon: Shield, adminOnly: true, hideForAdmin: false },
   { id: 'profile', label: 'Mon profil', icon: User, adminOnly: false, hideForAdmin: false },
 ];

@@ -238,6 +238,7 @@ function lireDonnees(brut: unknown): Record<string, unknown> {
 const TYPES_CONNUS: ReadonlyArray<NotificationItem['type']> = [
   'tache_affectee',
   'tache_statut_modifie',
+  'projet_termine',
   'membre_ajoute',
   'membre_retire',
   'fonction_modifiee',
@@ -250,6 +251,7 @@ const estTypeConnu = (valeur: unknown): valeur is NotificationItem['type'] =>
 const TYPE_PAR_CLASSE: Record<string, NotificationItem['type']> = {
   TacheAffectee: 'tache_affectee',
   TacheStatutModifie: 'tache_statut_modifie',
+  ProjetTermine: 'projet_termine',
   MembreAjoute: 'membre_ajoute',
   MembreRetire: 'membre_retire',
   FonctionModifiee: 'fonction_modifiee',
@@ -259,6 +261,7 @@ const TYPE_PAR_CLASSE: Record<string, NotificationItem['type']> = {
 const MESSAGE_PAR_TYPE: Record<NotificationItem['type'], string> = {
   tache_affectee: 'Une tâche vous a été affectée.',
   tache_statut_modifie: "Le statut d'une tâche a changé.",
+  projet_termine: 'Un projet est terminé.',
   membre_ajoute: 'Vous avez été ajouté à un projet.',
   membre_retire: "Vous avez été retiré d'un projet.",
   fonction_modifiee: 'Votre fonction dans un projet a changé.',

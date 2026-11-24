@@ -33,6 +33,9 @@ export const titreNotification = (type: string): string => {
     case 'tache_statut_modifie':
       return 'Statut modifié';
 
+    case 'projet_termine':
+      return 'Projet terminé';
+
     case 'membre_ajoute':
       return 'Nouveau projet';
 
