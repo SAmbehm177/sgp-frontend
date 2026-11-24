@@ -68,12 +68,12 @@ export const Navbar: React.FC<NavbarProps> = ({
               {b.onClick ? (
                 <button
                   onClick={b.onClick}
-                  className="hover:text-slate-900 transition-colors truncate max-w-[150px] sm:max-w-[200px]"
+                  className="hover:text-slate-900 transition-colors truncate max-w-150px sm:max-w-200px"
                 >
                   {b.label}
                 </button>
               ) : (
-                <span className="text-slate-900 font-semibold truncate max-w-[150px] sm:max-w-[200px]">
+                <span className="text-slate-900 font-semibold truncate max-w-150px sm:max-w-200px">
                   {b.label}
                 </span>
               )}
@@ -96,7 +96,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <Bell className="w-4 h-4" />
             {unreadCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-brand-800 text-white text-[10px] font-bold tabular-nums flex items-center justify-center">
+              <span className="absolute -top-0.5 -right-0.5 min-w-16px h-4 px-1 rounded-full bg-brand-800 text-white text-[10px] font-bold tabular-nums flex items-center justify-center">
                 {unreadCount > 99 ? '99+' : unreadCount}
               </span>
             )}
