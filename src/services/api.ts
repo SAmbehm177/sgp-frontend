@@ -122,6 +122,9 @@ class ApiService {
       const text = await res.text();
       return (text ? JSON.parse(text) : {}) as T;
     } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw err;
+      }
       if (typeof err === 'object' && err !== null && 'status' in err && (err as ApiError).status) {
         throw err;
       }
@@ -405,7 +408,7 @@ class ApiService {
   // Sans option : les 30 derniers messages. avantId : les 30 précédents. apresId : les nouveaux (sondage).
   public async getMessages(
     projetId: number,
-    opts: { avantId?: number; apresId?: number; apresSuppressionId?: number } = {}
+    opts: { avantId?: number; apresId?: number; apresSuppressionId?: number; signal?: AbortSignal } = {}
   ): Promise<{
     messages: Message[];
     aPlusAncien: boolean;
@@ -420,7 +423,10 @@ class ApiService {
     }
     const qs = params.toString();
 
-    const raw = await this.request<RawMessagesPage>(`/projets/${projetId}/messages${qs ? `?${qs}` : ''}`);
+    const raw = await this.request<RawMessagesPage>(
+      `/projets/${projetId}/messages${qs ? `?${qs}` : ''}`,
+      opts.signal ? { signal: opts.signal } : {}
+    );
     return {
       messages: (raw.data ?? []).map(mapMessage),
       aPlusAncien: !!raw.a_plus_ancien,
@@ -430,65 +436,6 @@ class ApiService {
       })),
       dernierIdSuppression: Number(raw.dernier_id_suppression ?? 0),
     };
-  }
-
-  public async streamMessages(
-    projetId: number,
-    opts: { apresId: number; apresSuppressionId: number },
-    onUpdate: (update: {
-      messages: Message[];
-      suppressions: { id: number; messageId: number }[];
-      dernierIdSuppression: number;
-    }) => void,
-    signal: AbortSignal
-  ): Promise<void> {
-    const params = new URLSearchParams({
-      apres_id: String(opts.apresId),
-      apres_suppression_id: String(opts.apresSuppressionId),
-    });
-    const baseUrl = API_BASE_URL.replace(/\/$/, '');
-    const res = await fetch(`${baseUrl}/projets/${projetId}/messages/stream?${params}`, {
-      headers: {
-        ...this.getHeaders(),
-        Accept: 'text/event-stream',
-      },
-      signal,
-    });
-
-    if (!res.ok) throw { status: res.status, message: 'Impossible d’ouvrir la synchronisation.' };
-    if (!res.body) throw new Error('Flux de messages indisponible.');
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) return;
-
-      buffer += decoder.decode(value, { stream: true });
-      const blocks = buffer.split('\n\n');
-      buffer = blocks.pop() ?? '';
-
-      for (const block of blocks) {
-        const data = block
-          .split('\n')
-          .filter((line) => line.startsWith('data:'))
-          .map((line) => line.slice(5).trimStart())
-          .join('\n');
-
-        if (!data) continue;
-        const raw = JSON.parse(data) as RawMessagesPage;
-        onUpdate({
-          messages: (raw.data ?? []).map(mapMessage),
-          suppressions: (raw.suppressions ?? []).map((s) => ({
-            id: Number(s.id),
-            messageId: Number(s.message_id),
-          })),
-          dernierIdSuppression: Number(raw.dernier_id_suppression ?? 0),
-        });
-      }
-    }
   }
 
   public async sendMessage(projetId: number, contenu: string, destinataireId?: number | null): Promise<Message> {

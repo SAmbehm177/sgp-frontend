@@ -15,6 +15,7 @@ interface ProjectDiscussionViewProps {
 }
 
 const LONGUEUR_MAX = 2000; // même limite que le backend
+const INTERVALLE_SYNCHRONISATION_MS = 2_000;
 
 export const ProjectDiscussionView: React.FC<ProjectDiscussionViewProps> = ({ projetId, canManage, membres }) => {
   const { user } = useAuth();
@@ -81,59 +82,82 @@ export const ProjectDiscussionView: React.FC<ProjectDiscussionViewProps> = ({ pr
     dernierId.current = messages.length > 0 ? messages[messages.length - 1].id : 0;
   }, [messages]);
 
-  // Flux SSE : les changements arrivent dès qu'ils sont enregistrés, avec reconnexion automatique.
+  // Synchronisation périodique courte, suspendue quand l'onglet est masqué.
   useEffect(() => {
     if (isLoading || loadError) return;
 
     let stop = false;
+    let timer: number | undefined;
     let controller: AbortController | null = null;
-    let reconnectTimer: number | undefined;
+    let enCours = false;
 
-    const appliquerFlux = (raw: {
-      messages: Message[];
-      suppressions: { id: number; messageId: number }[];
-      dernierIdSuppression: number;
-    }) => {
-      const nouveaux = raw.messages;
-      const suppressions = raw.suppressions;
-      dernierId.current = Math.max(dernierId.current, ...nouveaux.map((m) => m.id));
-      derniereSuppressionId.current = Math.max(
-        derniereSuppressionId.current,
-        raw.dernierIdSuppression
-      );
-      if (nouveaux.length === 0 && suppressions.length === 0) return;
-      if (nouveaux.length > 0) refreshNotifications();
-      setMessages((prev) => {
-        const supprimes = new Set(suppressions.map((s) => s.messageId));
-        const conserves = prev.filter((m) => !supprimes.has(m.id));
-        const connus = new Set(conserves.map((m) => m.id));
-        return [...conserves, ...nouveaux.filter((m) => !supprimes.has(m.id) && !connus.has(m.id))];
-      });
+    const planifierSynchronisation = () => {
+      if (stop || document.visibilityState !== 'visible') return;
+      timer = window.setTimeout(synchroniser, INTERVALLE_SYNCHRONISATION_MS);
     };
 
-    const ouvrirFlux = async () => {
-      if (stop) return;
-      controller = new AbortController();
+    const synchroniser = async () => {
+      if (stop || enCours || document.visibilityState !== 'visible') return;
+      enCours = true;
+      const requete = new AbortController();
+      controller = requete;
+
       try {
-        await api.streamMessages(projetId, {
+        const resultat = await api.getMessages(projetId, {
           apresId: dernierId.current,
           apresSuppressionId: derniereSuppressionId.current,
-        }, appliquerFlux, controller.signal);
-      } catch (caught) {
-        if (!stop && !(caught instanceof DOMException && caught.name === 'AbortError')) {
-          console.error('[SGP] Impossible de maintenir la synchronisation des messages.', caught);
-        }
-      }
+          signal: requete.signal,
+        });
+        if (stop) return;
 
-      if (!stop) reconnectTimer = window.setTimeout(ouvrirFlux, 1000);
+        const nouveaux = resultat.messages;
+        const suppressions = resultat.suppressions;
+        dernierId.current = Math.max(dernierId.current, ...nouveaux.map((m) => m.id));
+        derniereSuppressionId.current = Math.max(
+          derniereSuppressionId.current,
+          resultat.dernierIdSuppression
+        );
+        if (nouveaux.length > 0 || suppressions.length > 0) {
+          if (nouveaux.length > 0) refreshNotifications();
+          setMessages((prev) => {
+            const supprimes = new Set(suppressions.map((s) => s.messageId));
+            const conserves = prev.filter((m) => !supprimes.has(m.id));
+            const connus = new Set(conserves.map((m) => m.id));
+            return [
+              ...conserves,
+              ...nouveaux.filter((m) => !supprimes.has(m.id) && !connus.has(m.id)),
+            ];
+          });
+        }
+      } catch (caught) {
+        if (!stop && !(caught instanceof Error && caught.name === 'AbortError')) {
+          console.error('[SGP] Impossible de synchroniser les messages.', caught);
+        }
+      } finally {
+        if (controller === requete) controller = null;
+        enCours = false;
+        planifierSynchronisation();
+      }
     };
 
-    ouvrirFlux();
+    const gererVisibilite = () => {
+      if (document.visibilityState === 'visible') {
+        if (timer !== undefined) window.clearTimeout(timer);
+        void synchroniser();
+      } else {
+        if (timer !== undefined) window.clearTimeout(timer);
+        controller?.abort();
+      }
+    };
+
+    document.addEventListener('visibilitychange', gererVisibilite);
+    void synchroniser();
 
     return () => {
       stop = true;
+      if (timer !== undefined) window.clearTimeout(timer);
       controller?.abort();
-      if (reconnectTimer) window.clearTimeout(reconnectTimer);
+      document.removeEventListener('visibilitychange', gererVisibilite);
     };
   }, [projetId, isLoading, loadError, refreshNotifications]);
 

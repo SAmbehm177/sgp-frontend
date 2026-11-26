@@ -206,6 +206,31 @@ describe('discussion deletion polling', () => {
       expect.any(Object)
     );
   });
+
+  it('can abort a short discussion polling request without reporting a network failure', async () => {
+    const controller = new AbortController();
+    const abortError = new DOMException('The operation was aborted.', 'AbortError');
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    fetchMock.mockRejectedValue(abortError);
+
+    const request = api.getMessages(3, {
+      apresId: 25,
+      apresSuppressionId: 3,
+      signal: controller.signal,
+    });
+    controller.abort();
+
+    try {
+      await expect(request).rejects.toBe(abortError);
+      expect(fetchMock).toHaveBeenCalledWith(
+        'http://localhost:8000/api/projets/3/messages?apres_id=25&apres_suppression_id=3',
+        expect.objectContaining({ signal: controller.signal })
+      );
+      expect(errorSpy).not.toHaveBeenCalled();
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
 });
 
 describe('dashboard', () => {

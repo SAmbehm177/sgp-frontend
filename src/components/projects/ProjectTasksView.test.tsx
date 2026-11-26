@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MembreProjet, Projet, Tache } from '../../types/sgp';
 
@@ -71,7 +71,10 @@ describe('ProjectTasksView', () => {
     apiMock.updateTaskStatus.mockResolvedValue({});
     apiMock.deleteTache.mockResolvedValue(undefined);
   });
-  afterEach(() => cleanup());
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+  });
 
   it('liste les tâches du projet et signale celles en retard', async () => {
     const { findByText, getByText } = monter();
@@ -135,6 +138,26 @@ describe('ProjectTasksView', () => {
     fireEvent.click(await findByLabelText('Marquer « Rédiger le cahier » comme terminée'));
 
     await waitFor(() => expect(apiMock.updateTaskStatus).toHaveBeenCalledWith(1, 'termine'));
+  });
+
+  it('actualise la liste automatiquement pour refléter les changements faits par un autre membre', async () => {
+    vi.useFakeTimers();
+    const tachesTerminees = taches.map((item) =>
+      item.id === 1 ? { ...item, statut: 'termine' as const } : item
+    );
+    apiMock.getTaches.mockResolvedValueOnce(taches).mockResolvedValueOnce(tachesTerminees);
+
+    const { getByText } = monter(false);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15_000);
+    });
+
+    expect(apiMock.getTaches).toHaveBeenCalledTimes(2);
+    expect(getByText('Rédiger le cahier').closest('tr')?.textContent).toContain('Terminé');
   });
 
   it('un simple membre ne peut agir que sur ses propres tâches et ne peut ni créer ni supprimer', async () => {

@@ -58,7 +58,7 @@ export const MyTasksView: React.FC<MyTasksViewProps> = ({ onNavigate, initialFil
       if (toApiError(caught).status === 404) return { taches: [] as Tache[], sansFiche: true };
       throw caught;
     }
-  });
+  }, [], 15_000);
   const taches = data?.taches ?? [];
   const sansFiche = data?.sansFiche ?? false;
 
@@ -178,7 +178,7 @@ export const MyTasksView: React.FC<MyTasksViewProps> = ({ onNavigate, initialFil
             </div>
 
             <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-              <div className="relative min-w-[220px]">
+              <div className="relative min-w-220px">
                 <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
                   <Search className="w-3.5 h-3.5" />
                 </div>

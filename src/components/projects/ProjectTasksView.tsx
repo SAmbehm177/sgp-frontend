@@ -38,7 +38,7 @@ export const ProjectTasksView: React.FC<ProjectTasksViewProps> = ({
     isLoading,
     error: loadError,
     reload: loadTaches,
-  } = useApiData(() => api.getTaches(projet.id), [projet.id]);
+  } = useApiData(() => api.getTaches(projet.id), [projet.id], 15_000);
   const taches = useMemo(() => data ?? [], [data]);
 
   const [busyId, setBusyId] = useState<number | null>(null);
