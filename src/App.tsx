@@ -18,22 +18,23 @@ import { ProfileView } from './components/profile/ProfileView';
 import { NotificationsView } from './components/notifications/NotificationsView';
 import { LoginView } from './components/auth/LoginView';
 import { ForcePasswordChangeView } from './components/auth/ForcePasswordChangeView';
-import { NavigateFn, Route, parseHash, toHash } from './router';
+import { NavigateFn, Route, parsePath, toPath } from './router';
 
 interface Breadcrumb {
   label: string;
   onClick?: () => void;
 }
 
-// L'URL (hash) est la seule source de vérité de la navigation : pas d'état dupliqué à garder synchronisé
-function subscribeHash(onChange: () => void) {
-  window.addEventListener('hashchange', onChange);
-  return () => window.removeEventListener('hashchange', onChange);
+// L'URL est la seule source de vérité de la navigation : pas d'état dupliqué à garder synchronisé.
+// 'popstate' couvre Précédent/Suivant ; pushState ne le déclenche pas, d'où l'événement émis dans navigate().
+function subscribeUrl(onChange: () => void) {
+  window.addEventListener('popstate', onChange);
+  return () => window.removeEventListener('popstate', onChange);
 }
 
-function useHashRoute(): Route {
-  const hash = useSyncExternalStore(subscribeHash, () => window.location.hash);
-  return useMemo(() => parseHash(hash), [hash]);
+function useUrlRoute(): Route {
+  const url = useSyncExternalStore(subscribeUrl, () => window.location.pathname + window.location.search);
+  return useMemo(() => parsePath(url), [url]);
 }
 
 const LIBELLES_FIXES: Partial<Record<Route['name'], string>> = {
@@ -65,12 +66,17 @@ function construireFilAriane(
 
 function AppContent() {
   const { user, isAuthenticated, isLoading, isAdmin } = useAuth();
-  const route = useHashRoute();
+  const route = useUrlRoute();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [projetTitre, setProjetTitre] = useState<{ id: number; titre: string } | null>(null);
 
   const navigate = useCallback<NavigateFn>((name, params = {}) => {
-    window.location.hash = toHash(name, params);
+    const url = toPath(name, params);
+    // Même URL : pas de doublon dans l'historique (comme avec l'ancien hash)
+    if (url !== window.location.pathname + window.location.search) {
+      window.history.pushState(null, '', url);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 

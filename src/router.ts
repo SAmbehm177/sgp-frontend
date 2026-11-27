@@ -1,5 +1,5 @@
 /**
- * Routage par hash (#/…) : une seule source de vérité, l'URL.
+ * Routage par History API (/projets/12/taches) : une seule source de vérité, l'URL.
  * Fonctions pures (sans React) : faciles à tester et à relire.
  */
 import type { ProjectTab, RouteParams } from './types/sgp';
@@ -45,16 +45,16 @@ const ROUTES_PAR_SEGMENT = new Map<string, RouteName>(
   Object.entries(SEGMENTS).map(([name, segment]) => [segment as string, name as RouteName])
 );
 
-/** '#/projets/12/taches' -> { name: 'project-detail', params: { id: 12, tab: 'taches' } } */
-export function parseHash(hash: string): Route {
-  const [chemin, requete = ''] = hash.replace(/^#\/?/, '').split('?');
+/** '/projets/12/taches' -> { name: 'project-detail', params: { id: 12, tab: 'taches' } } */
+export function parsePath(url: string): Route {
+  const [chemin, requete = ''] = url.replace(/^\//, '').split('?');
   const [base, second, tab] = chemin.split('/');
 
   if (base === 'projets' && second === 'nouveau') return { name: 'projects-new', params: {} };
 
   if (base === 'projets' && second) {
     const id = Number(second);
-    // Identifiant invalide (#/projets/abc) : on retombe sur la liste plutôt que d'appeler l'API avec NaN
+    // Identifiant invalide (/projets/abc) : on retombe sur la liste plutôt que d'appeler l'API avec NaN
     if (!Number.isInteger(id) || id <= 0) return { name: 'projets', params: {} };
     return {
       name: 'project-detail',
@@ -67,12 +67,12 @@ export function parseHash(hash: string): Route {
   return { name, params: filter ? { filter } : {} };
 }
 
-/** Inverse de parseHash : { name: 'mes-taches', params: { filter: 'overdue' } } -> '#/mes-taches?filter=overdue' */
-export function toHash(name: RouteName, params: RouteParams = {}): string {
-  if (name === 'projects-new') return '#/projets/nouveau';
+/** Inverse de parsePath : { name: 'mes-taches', params: { filter: 'overdue' } } -> '/mes-taches?filter=overdue' */
+export function toPath(name: RouteName, params: RouteParams = {}): string {
+  if (name === 'projects-new') return '/projets/nouveau';
   if (name === 'project-detail') {
-    return `#/projets/${params.id}${params.tab ? `/${params.tab}` : ''}`;
+    return `/projets/${params.id}${params.tab ? `/${params.tab}` : ''}`;
   }
-  const base = `#/${SEGMENTS[name] ?? SEGMENTS.dashboard}`;
+  const base = `/${SEGMENTS[name] ?? SEGMENTS.dashboard}`;
   return params.filter ? `${base}?filter=${encodeURIComponent(params.filter)}` : base;
 }

@@ -146,7 +146,7 @@ export interface StatistiquesProjet {
   charge_par_membre: ChargeMembre[];
 }
 
-// Paramètres transmis lors d'une navigation interne (hash routing)
+// Paramètres transmis lors d'une navigation interne (routage par URL)
 export type ProjectTab = 'vue-ensemble' | 'taches' | 'membres' | 'discussion' | 'statistiques';
 
 export interface RouteParams {

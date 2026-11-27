@@ -1,0 +1,10 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Les fichiers et dossiers qui existent (assets, images...) sont servis tels quels
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+
+    # Toute autre URL (/profil, /projets/12...) renvoie l'application React
+    RewriteRule ^ index.html [L]
+</IfModule>
